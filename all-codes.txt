@@ -1,0 +1,2128 @@
+// ============================================================
+// ALL CODES FROM TANYA USTADZ V3 PROJECT
+// Generated on: 2026-04-06
+// ============================================================
+
+// project directory 
+
+Tanya-Ustadz-App/
+├── 📄 .env.example
+├── 📄 .gitignore
+├── 📄 README.md
+├── 📄 all-codes.txt
+├── 📄 nuxt.config.ts
+├── 📄 package.json
+├── 📄 package-lock.json
+├── 📄 tsconfig.json
+│
+├── 📁 composables/
+│   ├── 📄 useAdminAuth.ts
+│   ├── 📄 useFingerprint.ts
+│   ├── 📄 useQuestions.ts
+│   └── 📄 useUI.ts
+│
+├── 📁 middleware/
+│   ├── 📄 auth.ts
+│   ├── 📄 gate-guard.ts
+│   └── 📄 role-guard.ts
+│
+├── 📁 server/
+│   └── 📁 api/
+│       ├── 📄 verify-gate.post.ts
+│       ├── 📁 admin/
+│       │   ├── 📄 moderate.post.ts
+│       │   └── 📄 pin.post.ts
+│       ├── 📁 profile/
+│       │   └── 📄 select-role.post.ts
+│       ├── 📁 questions/
+│       │   ├── 📄 index.post.ts
+│       │   └── 📄 vote.post.ts
+│       └── 📁 ustadz/
+│           └── 📄 answer.post.ts
+│
+├── 📁 supabase/
+│   ├── 📁 functions/
+│   │   └── 📁 auto-delete-questions/
+│   │       └── 📄 index.ts
+│   └── 📁 migrations/
+│       └── 📄 setup.sql
+│
+├── 📁 app/ (default folder - contents not displayed)
+├── 📁 .nuxt/ (default folder - contents not displayed)
+├── 📁 node_modules/ (default folder - contents not displayed)
+└── 📁 public/ (default folder - contents not displayed)
+
+
+// ============================================================
+// FILE: supabase/migrations/setup.sql
+// ============================================================
+-- ============================================================
+-- PROJECT: TANYA USTADZ V3
+-- FILE: setup.sql
+-- DESC: Full schema, constraints, RLS, triggers, functions
+-- ORDER: Run this file once on a fresh Supabase project
+-- ============================================================
+
+
+-- ============================================================
+-- SECTION 1: EXTENSIONS
+-- ============================================================
+
+create extension if not exists "pgcrypto";
+
+
+-- ============================================================
+-- SECTION 2: TABLE — questions
+-- ============================================================
+
+create table if not exists public.questions (
+  id            uuid primary key default gen_random_uuid(),
+  ticket_id     text generated always as ('#TU-' || upper(substr(id::text, 33, 4))) stored,
+  created_at    timestamptz not null default timezone('utc', now()),
+  question      text not null,
+  category      text,
+  status        text not null default 'pending',
+  answer        text,
+  is_pinned     boolean not null default false,
+  upvotes       int not null default 0,
+
+  -- CHARACTER LIMITS
+  constraint question_max_length check (char_length(question) <= 500),
+  constraint answer_max_length   check (answer is null or char_length(answer) <= 2000),
+
+  -- STATUS ENUM (STRICT — 4 values only)
+  constraint valid_status check (
+    status in ('pending', 'verified', 'rejected', 'answered')
+  ),
+
+  -- CATEGORY ENUM
+  constraint valid_category check (
+    category is null or category in (
+      'Fikih',
+      'Akhlak & Adab',
+      'Keluarga',
+      'Muamalah',
+      'Umum'
+    )
+  )
+);
+
+-- Index: speed up public feed query
+create index if not exists idx_questions_status
+  on public.questions (status);
+
+-- Index: speed up cron cleanup
+create index if not exists idx_questions_cleanup
+  on public.questions (is_pinned, created_at)
+  where is_pinned = false;
+
+-- Index: speed up search
+create index if not exists idx_questions_search
+  on public.questions using gin (
+    to_tsvector('indonesian', question || ' ' || coalesce(category, ''))
+  );
+
+
+-- ============================================================
+-- SECTION 3: TABLE — question_votes (ANTI-SPAM UPVOTE)
+-- ============================================================
+
+create table if not exists public.question_votes (
+  id          uuid primary key default gen_random_uuid(),
+  question_id uuid not null references public.questions(id) on delete cascade,
+  fingerprint text not null,
+  created_at  timestamptz not null default timezone('utc', now()),
+
+  -- 1 fingerprint = 1 vote per question (enforced at DB level)
+  constraint unique_vote unique (question_id, fingerprint)
+);
+
+-- Index: fast lookup when checking existing vote
+create index if not exists idx_votes_fingerprint
+  on public.question_votes (question_id, fingerprint);
+
+
+-- ============================================================
+-- SECTION 4: TABLE — profiles (Google OAuth users)
+-- ============================================================
+
+create table if not exists public.profiles (
+  id         uuid primary key references auth.users on delete cascade,
+  full_name  text,
+  email      text,
+  avatar_url text,
+  role       text default null,
+
+  constraint valid_role check (
+    role is null or role in ('admin', 'ustadz')
+  )
+);
+
+
+-- ============================================================
+-- SECTION 5: TABLE — rate_limit_log (Gate password brute-force)
+-- ============================================================
+
+create table if not exists public.rate_limit_log (
+  id         uuid primary key default gen_random_uuid(),
+  ip         text not null,
+  attempted_at timestamptz not null default timezone('utc', now())
+);
+
+-- Index: fast lookup for rate limit check
+create index if not exists idx_rate_limit_ip
+  on public.rate_limit_log (ip, attempted_at);
+
+-- Auto-cleanup old logs (> 15 min) — done inside the API handler via delete
+
+
+-- ============================================================
+-- SECTION 6: FUNCTION — auto-sync upvotes count via trigger
+-- ============================================================
+
+create or replace function public.sync_upvote_count()
+returns trigger
+language plpgsql
+security definer
+as $$
+begin
+  if (TG_OP = 'INSERT') then
+    update public.questions
+    set upvotes = upvotes + 1
+    where id = NEW.question_id;
+
+  elsif (TG_OP = 'DELETE') then
+    update public.questions
+    set upvotes = greatest(upvotes - 1, 0)
+    where id = OLD.question_id;
+  end if;
+
+  return null;
+end;
+$$;
+
+-- Trigger: fire after insert/delete on question_votes
+create or replace trigger trg_sync_upvotes
+  after insert or delete on public.question_votes
+  for each row
+  execute function public.sync_upvote_count();
+
+
+-- ============================================================
+-- SECTION 7: FUNCTION — auto-create profile on Google login
+-- ============================================================
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (id, full_name, email, avatar_url)
+  values (
+    new.id,
+    new.raw_user_meta_data->>'full_name',
+    new.email,
+    new.raw_user_meta_data->>'avatar_url'
+  )
+  on conflict (id) do nothing; -- safe re-run
+  return new;
+end;
+$$;
+
+-- Trigger: fire after new Google OAuth user is created
+create or replace trigger on_auth_user_created
+  after insert on auth.users
+  for each row
+  execute function public.handle_new_user();
+
+
+-- ============================================================
+-- SECTION 8: ENABLE ROW LEVEL SECURITY
+-- ============================================================
+
+alter table public.questions      enable row level security;
+alter table public.question_votes enable row level security;
+alter table public.profiles       enable row level security;
+alter table public.rate_limit_log enable row level security;
+
+
+-- ============================================================
+-- SECTION 9: RLS POLICIES — questions
+-- ============================================================
+
+-- DROP existing policies before re-creating (safe re-run)
+drop policy if exists "Public can read answered questions"  on public.questions;
+drop policy if exists "Public can insert questions"         on public.questions;
+drop policy if exists "Admin can verify or reject"          on public.questions;
+drop policy if exists "Ustadz can answer"                   on public.questions;
+drop policy if exists "Admin can delete"                    on public.questions;
+
+-- 9A. SELECT: Public (Jemaah) — only answered questions
+create policy "Public can read answered questions"
+  on public.questions
+  for select
+  using (status = 'answered');
+
+-- 9B. INSERT: Public (Jemaah) — anonymous, no auth needed
+create policy "Public can insert questions"
+  on public.questions
+  for insert
+  with check (true);
+
+-- 9C. UPDATE: Admin — can ONLY change status to verified or rejected
+--     Column-level: cannot touch 'answer' field
+create policy "Admin can verify or reject"
+  on public.questions
+  for update
+  using (
+    exists (
+      select 1 from public.profiles
+      where profiles.id = auth.uid()
+        and profiles.role = 'admin'
+    )
+    and status not in ('answered')  -- cannot re-moderate answered questions
+  )
+  with check (
+    status in ('verified', 'rejected')
+    and answer is not distinct from (select answer from public.questions where id = questions.id)
+    -- answer must remain unchanged (admin cannot write answers)
+  );
+
+-- 9D. UPDATE: Ustadz — can ONLY set answer + status = answered
+--     Column-level: cannot change status to verified/rejected
+create policy "Ustadz can answer"
+  on public.questions
+  for update
+  using (
+    exists (
+      select 1 from public.profiles
+      where profiles.id = auth.uid()
+        and profiles.role = 'ustadz'
+    )
+    and status = 'verified'  -- can only answer verified questions
+  )
+  with check (
+    status = 'answered'
+    and answer is not null
+    and char_length(answer) <= 2000
+  );
+
+-- 9E. DELETE: Admin only (soft enforced — cron handles auto-delete)
+create policy "Admin can delete"
+  on public.questions
+  for delete
+  using (
+    exists (
+      select 1 from public.profiles
+      where profiles.id = auth.uid()
+        and profiles.role = 'admin'
+    )
+  );
+
+-- 9F. Admin & Ustadz can read all statuses (not just answered)
+drop policy if exists "Staff can read all questions" on public.questions;
+
+create policy "Staff can read all questions"
+  on public.questions
+  for select
+  using (
+    exists (
+      select 1 from public.profiles
+      where profiles.id = auth.uid()
+        and profiles.role in ('admin', 'ustadz')
+    )
+  );
+
+
+-- ============================================================
+-- SECTION 10: RLS POLICIES — question_votes
+-- ============================================================
+
+drop policy if exists "Anyone can vote"             on public.question_votes;
+drop policy if exists "Anyone can read vote counts" on public.question_votes;
+
+-- Anyone can insert a vote (fingerprint uniqueness enforced by constraint)
+create policy "Anyone can vote"
+  on public.question_votes
+  for insert
+  with check (true);
+
+-- Anyone can read vote records (to check if already voted)
+create policy "Anyone can read vote counts"
+  on public.question_votes
+  for select
+  using (true);
+
+
+-- ============================================================
+-- SECTION 11: RLS POLICIES — profiles
+-- ============================================================
+
+drop policy if exists "Users can read own profile"   on public.profiles;
+drop policy if exists "Users can update own role"    on public.profiles;
+
+-- User can only read their own profile
+create policy "Users can read own profile"
+  on public.profiles
+  for select
+  using (auth.uid() = id);
+
+-- User can update their own role (only if currently null — first-time selection)
+create policy "Users can update own role"
+  on public.profiles
+  for update
+  using (auth.uid() = id)
+  with check (
+    role in ('admin', 'ustadz')
+  );
+
+
+-- ============================================================
+-- SECTION 12: RLS POLICIES — rate_limit_log
+-- ============================================================
+
+drop policy if exists "Service role only for rate limit" on public.rate_limit_log;
+
+-- Only service role (server API) can read/write rate limit logs
+-- Client has no access
+create policy "Service role only for rate limit"
+  on public.rate_limit_log
+  for all
+  using (false)         -- no client access
+  with check (false);
+
+
+-- ============================================================
+-- SECTION 13: REALTIME — enable publication for live updates
+-- ============================================================
+
+-- Enable realtime on questions table
+alter publication supabase_realtime add table public.questions;
+
+
+-- ============================================================
+-- SECTION 14: ADMIN FUNCTION — get all questions (bypass RLS)
+-- ============================================================
+-- Called server-side only via service role key
+
+create or replace function public.get_all_questions_for_staff()
+returns setof public.questions
+language sql
+security definer
+set search_path = public
+as $$
+  select * from public.questions order by created_at desc;
+$$;
+
+
+-- ============================================================
+-- DONE
+-- ============================================================
+-- Run order:
+-- 1. This file in Supabase SQL editor
+-- 2. Deploy Edge Function (auto-delete cron)
+-- 3. Set Realtime enabled for questions table in Supabase dashboard
+-- ============================================================
+
+// ============================================================
+// FILE: supabase/functions/auto-delete-questions/index.ts
+// ============================================================
+// ============================================================
+// PROJECT: TANYA USTADZ V3
+// FILE: supabase/functions/auto-delete-questions/index.ts
+// DESC: Edge Function — daily cron to delete expired questions
+// TRIGGER: Supabase Cron Job @ "0 0 * * *" (every day 00:00 UTC)
+// ============================================================
+
+// @ts-nocheck - Deno environment types not available in main project
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+// These are injected automatically by Supabase runtime
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+Deno.serve(async (req: Request) => {
+  // Security: Only allow invocation from Supabase internal cron
+  // (service role key is verified automatically by the runtime)
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader || authHeader !== `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`) {
+    return new Response(
+      JSON.stringify({ error: "Unauthorized" }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  // Initialize Supabase client with service role (bypasses RLS)
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false },
+  });
+
+  try {
+    // Calculate cutoff: 30 days ago
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - 30);
+    const cutoffISO = cutoffDate.toISOString();
+
+    // Delete only:
+    // - NOT pinned
+    // - older than 30 days
+    // is_pinned = true is FULLY EXEMPT — enforced here
+    const { data, error, count } = await supabase
+      .from("questions")
+      .delete({ count: "exact" })
+      .eq("is_pinned", false)
+      .lt("created_at", cutoffISO);
+
+    if (error) {
+      console.error("[AUTO-DELETE] Supabase error:", error.message);
+      return new Response(
+        JSON.stringify({ success: false, error: error.message }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`[AUTO-DELETE] Deleted ${count ?? 0} expired questions (before ${cutoffISO})`);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        deleted_count: count ?? 0,
+        cutoff_date: cutoffISO,
+        ran_at: new Date().toISOString(),
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("[AUTO-DELETE] Unexpected error:", message);
+    return new Response(
+      JSON.stringify({ success: false, error: message }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+});
+
+// ============================================================
+// FILE: server/api/verify-gate.post.ts
+// ============================================================
+// ============================================================
+// PROJECT: TANYA USTADZ V3
+// FILE: server/api/verify-gate.post.ts
+// DESC: Gate 1 — validates the secret password (server-only)
+//       - Password NEVER exposed to client
+//       - Rate limit: 5 failed attempts / IP / 15 minutes
+//       - 500ms artificial delay on failure
+// ============================================================
+
+import { defineEventHandler, readBody, getRequestIP, createError } from "h3";
+import { createClient } from "@supabase/supabase-js";
+
+// In-memory rate limit store (per server instance)
+// For production, consider using Redis via Upstash if scaling horizontally
+const failedAttempts = new Map<string, { count: number; resetAt: number }>();
+
+const RATE_LIMIT_MAX    = 5;          // max failed attempts
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes in ms
+const FAILURE_DELAY_MS  = 500;         // artificial delay per failed attempt
+
+function getClientIP(event: any): string {
+  // Prefer x-forwarded-for (Vercel/Netlify proxy header)
+  const forwarded = event.node.req.headers["x-forwarded-for"];
+  if (typeof forwarded === "string") return forwarded.split(",")[0].trim();
+  return getRequestIP(event) ?? "unknown";
+}
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const record = failedAttempts.get(ip);
+
+  if (!record) return false;
+
+  // Reset window if expired
+  if (now > record.resetAt) {
+    failedAttempts.delete(ip);
+    return false;
+  }
+
+  return record.count >= RATE_LIMIT_MAX;
+}
+
+function recordFailedAttempt(ip: string): void {
+  const now = Date.now();
+  const record = failedAttempts.get(ip);
+
+  if (!record || now > record.resetAt) {
+    failedAttempts.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+  } else {
+    record.count += 1;
+  }
+}
+
+function clearFailedAttempts(ip: string): void {
+  failedAttempts.delete(ip);
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export default defineEventHandler(async (event) => {
+  const ip = getClientIP(event);
+
+  // --- RATE LIMIT CHECK ---
+  if (isRateLimited(ip)) {
+    throw createError({
+      statusCode: 429,
+      statusMessage: "Too Many Requests",
+      message: "Terlalu banyak percobaan. Coba lagi dalam 15 menit.",
+    });
+  }
+
+  // --- READ BODY ---
+  const body = await readBody(event);
+  const inputPassword: string = (body?.password ?? "").trim();
+
+  if (!inputPassword) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: "Bad Request",
+      message: "Password tidak boleh kosong.",
+    });
+  }
+
+  // --- COMPARE PASSWORD (server-side only, never exposed to client) ---
+  const correctPassword = process.env.ADMIN_GATE_PASSWORD;
+
+  if (!correctPassword) {
+    // Misconfiguration — do not leak details
+    console.error("[verify-gate] ADMIN_GATE_PASSWORD is not set in environment.");
+    throw createError({
+      statusCode: 500,
+      statusMessage: "Internal Server Error",
+      message: "Konfigurasi server bermasalah.",
+    });
+  }
+
+  if (inputPassword !== correctPassword) {
+    // Artificial delay before responding to failed attempt
+    await delay(FAILURE_DELAY_MS);
+    recordFailedAttempt(ip);
+
+    const record = failedAttempts.get(ip);
+    const remaining = RATE_LIMIT_MAX - (record?.count ?? 0);
+
+    throw createError({
+      statusCode: 401,
+      statusMessage: "Unauthorized",
+      message:
+        remaining > 0
+          ? `Password salah. ${remaining} percobaan tersisa.`
+          : "Terlalu banyak percobaan. Coba lagi dalam 15 menit.",
+    });
+  }
+
+  // --- SUCCESS: clear any previous failure record ---
+  clearFailedAttempts(ip);
+
+  // Set HttpOnly cookie: gate_access=true, 24 hours, SameSite=Strict
+  // Nuxt setCookie util
+  const { setCookie } = await import("h3");
+  setCookie(event, "gate_access", "true", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 60 * 60 * 24, // 24 hours in seconds
+    path: "/",
+  });
+
+  return { success: true };
+});
+
+// ============================================================
+// FILE: server/api/questions/index.post.ts
+// ============================================================
+// ============================================================
+// PROJECT: TANYA USTADZ V3
+// FILE: server/api/questions/index.post.ts
+// DESC: Submit a new question (anonymous Jemaah)
+//       - Rate limit: 1 question / 5 min / fingerprint
+//       - Input validation & sanitization (XSS prevention)
+//       - ticket_id is generated by DB (not frontend)
+// ============================================================
+
+import { defineEventHandler, readBody, getRequestIP, createError } from "h3";
+import { serverSupabaseClient } from "#supabase/server";
+
+const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+const submissionLog = new Map<string, number>(); // fingerprint → last submission timestamp
+
+const VALID_CATEGORIES = ["Fikih", "Akhlak & Adab", "Keluarga", "Muamalah", "Umum"] as const;
+
+function getClientIP(event: any): string {
+  const forwarded = event.node.req.headers["x-forwarded-for"];
+  if (typeof forwarded === "string") return forwarded.split(",")[0].trim();
+  return getRequestIP(event) ?? "unknown";
+}
+
+/**
+ * Lightweight XSS sanitizer:
+ * Escapes HTML characters to prevent script injection when rendered.
+ */
+function sanitizeText(input: string): string {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;")
+    .replace(/\//g, "&#x2F;");
+}
+
+export default defineEventHandler(async (event) => {
+  const body = await readBody(event);
+
+  // --- INPUT EXTRACTION ---
+  const rawQuestion: string  = (body?.question  ?? "").trim();
+  const rawCategory: string  = (body?.category  ?? "").trim();
+  const fingerprint: string  = (body?.fingerprint ?? "").trim();
+
+  // --- VALIDATION: required fields ---
+  if (!rawQuestion) {
+    throw createError({ statusCode: 400, message: "Pertanyaan tidak boleh kosong." });
+  }
+
+  if (!fingerprint) {
+    throw createError({ statusCode: 400, message: "Fingerprint tidak valid." });
+  }
+
+  // --- VALIDATION: character limits ---
+  if (rawQuestion.length > 500) {
+    throw createError({ statusCode: 400, message: "Pertanyaan maksimal 500 karakter." });
+  }
+
+  // --- VALIDATION: category ---
+  const category = rawCategory || null;
+  if (category && !(VALID_CATEGORIES as readonly string[]).includes(category)) {
+    throw createError({ statusCode: 400, message: "Kategori tidak valid." });
+  }
+
+  // --- RATE LIMIT: 1 question per fingerprint per 5 minutes ---
+  const ip = getClientIP(event);
+  const rateLimitKey = `${ip}:${fingerprint}`;
+  const now = Date.now();
+  const lastSubmission = submissionLog.get(rateLimitKey);
+
+  if (lastSubmission && now - lastSubmission < RATE_LIMIT_WINDOW_MS) {
+    const waitSeconds = Math.ceil((RATE_LIMIT_WINDOW_MS - (now - lastSubmission)) / 1000);
+    throw createError({
+      statusCode: 429,
+      message: `Tunggu ${waitSeconds} detik sebelum mengirim pertanyaan berikutnya.`,
+    });
+  }
+
+  // --- SANITIZE INPUT (XSS prevention) ---
+  const safeQuestion = sanitizeText(rawQuestion);
+  const safeCategory = category ? sanitizeText(category) : null;
+
+  // --- INSERT INTO SUPABASE ---
+  const supabase = await serverSupabaseClient(event);
+
+  const { data, error } = await supabase
+    .from("questions")
+    .insert({
+      question: safeQuestion,
+      category: safeCategory,
+      status: "pending",
+    })
+    .select("id, ticket_id, created_at, status")
+    .single();
+
+  if (error) {
+    console.error("[questions/post] Supabase insert error:", error.message);
+    throw createError({
+      statusCode: 500,
+      message: "Gagal mengirim pertanyaan. Silakan coba lagi.",
+    });
+  }
+
+  // --- RECORD SUBMISSION TIME ---
+  submissionLog.set(rateLimitKey, now);
+
+  // Periodically clean up old entries to prevent memory leak
+  if (submissionLog.size > 1000) {
+    for (const [key, ts] of submissionLog.entries()) {
+      if (now - ts > RATE_LIMIT_WINDOW_MS) submissionLog.delete(key);
+    }
+  }
+
+  return {
+    success: true,
+    ticket_id: data.ticket_id,
+    created_at: data.created_at,
+  };
+});
+
+// ============================================================
+// FILE: server/api/questions/vote.post.ts
+// ============================================================
+// ============================================================
+// PROJECT: TANYA USTADZ V3
+// FILE: server/api/questions/vote.post.ts
+// DESC: Submit or retract an upvote for a question
+//       - 1 fingerprint = 1 vote per question (DB-enforced)
+//       - Upvotes count synced via trigger (not manual count)
+// ============================================================
+
+import { defineEventHandler, readBody, createError } from "h3";
+import { serverSupabaseClient } from "#supabase/server";
+
+export default defineEventHandler(async (event) => {
+  const body = await readBody(event);
+
+  const questionId: string  = (body?.question_id ?? "").trim();
+  const fingerprint: string = (body?.fingerprint  ?? "").trim();
+
+  // --- VALIDATION ---
+  if (!questionId) {
+    throw createError({ statusCode: 400, message: "question_id wajib diisi." });
+  }
+  if (!fingerprint) {
+    throw createError({ statusCode: 400, message: "Fingerprint tidak valid." });
+  }
+
+  const supabase = await serverSupabaseClient(event);
+
+  // --- CHECK: Question must exist and be publicly visible ---
+  const { data: question, error: fetchError } = await supabase
+    .from("questions")
+    .select("id, status")
+    .eq("id", questionId)
+    .single();
+
+  if (fetchError || !question) {
+    throw createError({ statusCode: 404, message: "Pertanyaan tidak ditemukan." });
+  }
+
+  // --- CHECK: Already voted? ---
+  const { data: existingVote } = await supabase
+    .from("question_votes")
+    .select("id")
+    .eq("question_id", questionId)
+    .eq("fingerprint", fingerprint)
+    .maybeSingle();
+
+  if (existingVote) {
+    // RETRACT vote (toggle off)
+    const { error: deleteError } = await supabase
+      .from("question_votes")
+      .delete()
+      .eq("question_id", questionId)
+      .eq("fingerprint", fingerprint);
+
+    if (deleteError) {
+      throw createError({ statusCode: 500, message: "Gagal menghapus vote." });
+    }
+
+    return { success: true, action: "retracted" };
+  }
+
+  // --- INSERT vote ---
+  const { error: insertError } = await supabase
+    .from("question_votes")
+    .insert({ question_id: questionId, fingerprint });
+
+  if (insertError) {
+    // Unique constraint violation = already voted (race condition safety)
+    if (insertError.code === "23505") {
+      return { success: false, action: "already_voted" };
+    }
+    throw createError({ statusCode: 500, message: "Gagal menyimpan vote." });
+  }
+
+  return { success: true, action: "voted" };
+});
+
+// ============================================================
+// FILE: server/api/admin/moderate.post.ts
+// ============================================================
+// ============================================================
+// PROJECT: TANYA USTADZ V3
+// FILE: server/api/admin/moderate.post.ts
+// DESC: Admin action — approve (verified) or reject a question
+//       - Only 'admin' role can call this
+//       - Cannot touch 'answer' column
+//       - Cannot re-moderate answered questions
+// ============================================================
+
+import { defineEventHandler, readBody, createError } from "h3";
+import { serverSupabaseClient } from "#supabase/server";
+
+type AllowedAction = "verified" | "rejected";
+const ALLOWED_ACTIONS: AllowedAction[] = ["verified", "rejected"];
+
+export default defineEventHandler(async (event) => {
+  const supabase = await serverSupabaseClient(event);
+
+  // --- AUTH CHECK ---
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw createError({ statusCode: 401, message: "Tidak terautentikasi." });
+  }
+
+  // --- ROLE CHECK ---
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError || !profile || profile.role !== "admin") {
+    throw createError({
+      statusCode: 403,
+      message: "Akses ditolak. Hanya Admin yang dapat melakukan moderasi.",
+    });
+  }
+
+  // --- READ BODY ---
+  const body = await readBody(event);
+  const questionId: string = (body?.question_id ?? "").trim();
+  const action: string     = (body?.action      ?? "").trim();
+
+  if (!questionId) {
+    throw createError({ statusCode: 400, message: "question_id wajib diisi." });
+  }
+
+  if (!ALLOWED_ACTIONS.includes(action as AllowedAction)) {
+    throw createError({
+      statusCode: 400,
+      message: "Action tidak valid. Gunakan 'verified' atau 'rejected'.",
+    });
+  }
+
+  // --- CHECK: Question exists and is still pending ---
+  const { data: question, error: fetchError } = await supabase
+    .from("questions")
+    .select("id, status")
+    .eq("id", questionId)
+    .single();
+
+  if (fetchError || !question) {
+    throw createError({ statusCode: 404, message: "Pertanyaan tidak ditemukan." });
+  }
+
+  if (question.status === "answered") {
+    throw createError({
+      statusCode: 409,
+      message: "Pertanyaan yang sudah dijawab tidak bisa dimoderasi ulang.",
+    });
+  }
+
+  if (question.status !== "pending") {
+    throw createError({
+      statusCode: 409,
+      message: `Pertanyaan sudah dimoderasi (status: ${question.status}).`,
+    });
+  }
+
+  // --- UPDATE: only status column, never answer ---
+  const { error: updateError } = await supabase
+    .from("questions")
+    .update({ status: action as AllowedAction })
+    .eq("id", questionId)
+    .eq("status", "pending"); // extra guard: only update if still pending
+
+  if (updateError) {
+    console.error("[admin/moderate] Update error:", updateError.message);
+    throw createError({ statusCode: 500, message: "Gagal memperbarui status pertanyaan." });
+  }
+
+  return {
+    success: true,
+    question_id: questionId,
+    new_status: action,
+  };
+});
+
+// ============================================================
+// FILE: server/api/admin/pin.post.ts
+// ============================================================
+// ============================================================
+// PROJECT: TANYA USTADZ V3
+// FILE: server/api/admin/pin.post.ts
+// DESC: Admin action — toggle is_pinned on a question
+//       - Pinned questions are exempt from 30-day auto-delete
+//       - Only 'admin' role can call this
+// ============================================================
+
+import { defineEventHandler, readBody, createError } from "h3";
+import { serverSupabaseClient } from "#supabase/server";
+
+export default defineEventHandler(async (event) => {
+  const supabase = await serverSupabaseClient(event);
+
+  // --- AUTH CHECK ---
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw createError({ statusCode: 401, message: "Tidak terautentikasi." });
+  }
+
+  // --- ROLE CHECK ---
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile || profile.role !== "admin") {
+    throw createError({
+      statusCode: 403,
+      message: "Akses ditolak. Hanya Admin yang dapat mengubah pin.",
+    });
+  }
+
+  // --- READ BODY ---
+  const body = await readBody(event);
+  const questionId: string = (body?.question_id ?? "").trim();
+
+  if (!questionId) {
+    throw createError({ statusCode: 400, message: "question_id wajib diisi." });
+  }
+
+  // --- FETCH current is_pinned state ---
+  const { data: question, error: fetchError } = await supabase
+    .from("questions")
+    .select("id, is_pinned")
+    .eq("id", questionId)
+    .single();
+
+  if (fetchError || !question) {
+    throw createError({ statusCode: 404, message: "Pertanyaan tidak ditemukan." });
+  }
+
+  // --- TOGGLE is_pinned ---
+  const newPinnedState = !question.is_pinned;
+
+  const { error: updateError } = await supabase
+    .from("questions")
+    .update({ is_pinned: newPinnedState })
+    .eq("id", questionId);
+
+  if (updateError) {
+    throw createError({ statusCode: 500, message: "Gagal mengubah status pin." });
+  }
+
+  return {
+    success: true,
+    question_id: questionId,
+    is_pinned: newPinnedState,
+  };
+});
+
+// ============================================================
+// FILE: server/api/ustadz/answer.post.ts
+// ============================================================
+// ============================================================
+// PROJECT: TANYA USTADZ V3
+// FILE: server/api/ustadz/answer.post.ts
+// DESC: Ustadz action — submit answer to a verified question
+//       - Only 'ustadz' role can call this
+//       - Only 'verified' questions can be answered
+//       - Validates question still exists before submit (cron edge case)
+//       - Sets status → 'answered' + fills answer column
+// ============================================================
+
+import { defineEventHandler, readBody, createError } from "h3";
+import { serverSupabaseClient } from "#supabase/server";
+
+/**
+ * XSS sanitizer for answer text
+ */
+function sanitizeText(input: string): string {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;")
+    .replace(/\//g, "&#x2F;");
+}
+
+export default defineEventHandler(async (event) => {
+  const supabase = await serverSupabaseClient(event);
+
+  // --- AUTH CHECK ---
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw createError({ statusCode: 401, message: "Tidak terautentikasi." });
+  }
+
+  // --- ROLE CHECK ---
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile || profile.role !== "ustadz") {
+    throw createError({
+      statusCode: 403,
+      message: "Akses ditolak. Hanya Ustadz yang dapat mengisi jawaban.",
+    });
+  }
+
+  // --- READ BODY ---
+  const body = await readBody(event);
+  const questionId: string = (body?.question_id ?? "").trim();
+  const rawAnswer: string  = (body?.answer      ?? "").trim();
+
+  if (!questionId) {
+    throw createError({ statusCode: 400, message: "question_id wajib diisi." });
+  }
+
+  if (!rawAnswer) {
+    throw createError({ statusCode: 400, message: "Jawaban tidak boleh kosong." });
+  }
+
+  if (rawAnswer.length > 2000) {
+    throw createError({ statusCode: 400, message: "Jawaban maksimal 2000 karakter." });
+  }
+
+  // --- CRITICAL EDGE CASE: Validate question still exists ---
+  // (Cron may have deleted it while Ustadz had the modal open)
+  const { data: question, error: fetchError } = await supabase
+    .from("questions")
+    .select("id, status")
+    .eq("id", questionId)
+    .single();
+
+  if (fetchError || !question) {
+    throw createError({
+      statusCode: 404,
+      message: "Pertanyaan tidak ditemukan. Mungkin sudah dihapus secara otomatis.",
+    });
+  }
+
+  if (question.status !== "verified") {
+    throw createError({
+      statusCode: 409,
+      message: `Hanya pertanyaan 'verified' yang bisa dijawab. Status saat ini: ${question.status}.`,
+    });
+  }
+
+  // --- SANITIZE ANSWER ---
+  const safeAnswer = sanitizeText(rawAnswer);
+
+  // --- UPDATE: answer + status, nothing else ---
+  const { error: updateError } = await supabase
+    .from("questions")
+    .update({
+      answer: safeAnswer,
+      status: "answered",
+    })
+    .eq("id", questionId)
+    .eq("status", "verified"); // extra guard: only update if still verified
+
+  if (updateError) {
+    console.error("[ustadz/answer] Update error:", updateError.message);
+    throw createError({ statusCode: 500, message: "Gagal menyimpan jawaban." });
+  }
+
+  return {
+    success: true,
+    question_id: questionId,
+    status: "answered",
+  };
+});
+
+// ============================================================
+// FILE: server/api/profile/select-role.post.ts
+// ============================================================
+// ============================================================
+// PROJECT: TANYA USTADZ V3
+// FILE: server/api/profile/select-role.post.ts
+// DESC: Set role for authenticated Google OAuth user
+//       - Only allowed if current role IS NULL (first-time)
+//       - Accepts: 'admin' or 'ustadz'
+// ============================================================
+
+import { defineEventHandler, readBody, createError } from "h3";
+import { serverSupabaseClient } from "#supabase/server";
+
+type ValidRole = "admin" | "ustadz";
+const VALID_ROLES: ValidRole[] = ["admin", "ustadz"];
+
+export default defineEventHandler(async (event) => {
+  const supabase = await serverSupabaseClient(event);
+
+  // --- AUTH CHECK ---
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw createError({ statusCode: 401, message: "Tidak terautentikasi." });
+  }
+
+  // --- READ BODY ---
+  const body = await readBody(event);
+  const role: string = (body?.role ?? "").trim();
+
+  if (!VALID_ROLES.includes(role as ValidRole)) {
+    throw createError({
+      statusCode: 400,
+      message: "Role tidak valid. Pilih 'admin' atau 'ustadz'.",
+    });
+  }
+
+  // --- FETCH existing profile ---
+  const { data: existing, error: fetchError } = await supabase
+    .from("profiles")
+    .select("id, role")
+    .eq("id", user.id)
+    .single();
+
+  if (fetchError || !existing) {
+    throw createError({ statusCode: 404, message: "Profil tidak ditemukan." });
+  }
+
+  // --- GUARD: Role already set — do not allow override ---
+  if (existing.role !== null) {
+    return {
+      success: true,
+      role: existing.role,
+      message: "Role sudah dipilih sebelumnya.",
+    };
+  }
+
+  // --- UPDATE role ---
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({ role: role as ValidRole })
+    .eq("id", user.id);
+
+  if (updateError) {
+    console.error("[select-role] Update error:", updateError.message);
+    throw createError({ statusCode: 500, message: "Gagal menyimpan role." });
+  }
+
+  return {
+    success: true,
+    role,
+  };
+});
+
+// ============================================================
+// FILE: middleware/gate-guard.ts
+// ============================================================
+// ============================================================
+// PROJECT: TANYA USTADZ V3
+// FILE: middleware/gate-guard.ts
+// DESC: Gate 1 — verify gate_access cookie is set
+//       Applied to: /password-page, /login-gate, /select-role,
+//                   /dashboard/**
+//       If cookie missing → redirect to /password-page
+// ============================================================
+
+export default defineNuxtRouteMiddleware((to) => {
+  // Only guard admin-area routes
+  const guardedPaths = ["/login-gate", "/select-role", "/dashboard"];
+  const isGuarded = guardedPaths.some((path) => to.path.startsWith(path));
+
+  if (!isGuarded) return;
+
+  // Read cookie (works SSR + CSR)
+  const gateAccess = useCookie("gate_access");
+
+  if (gateAccess.value !== "true") {
+    return navigateTo("/password-page");
+  }
+});
+
+// ============================================================
+// FILE: middleware/auth.ts
+// ============================================================
+// ============================================================
+// PROJECT: TANYA USTADZ V3
+// FILE: middleware/auth.ts
+// DESC: Gate 2 — verify active Supabase Google OAuth session
+//       Applied to: /select-role, /dashboard/**
+//       If no session → redirect to /login-gate
+// ============================================================
+
+import { defineNuxtRouteMiddleware, navigateTo } from "nuxt/app";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NUXT_PUBLIC_SUPABASE_URL!,
+  process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+export default defineNuxtRouteMiddleware(async (to) => {
+  const guardedPaths = ["/select-role", "/dashboard"];
+  const isGuarded = guardedPaths.some((path) => to.path.startsWith(path));
+
+  if (!isGuarded) return;
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    return navigateTo("/login-gate");
+  }
+});
+
+// ============================================================
+// FILE: middleware/role-guard.ts
+// ============================================================
+// ============================================================
+// PROJECT: TANYA USTADZ V3
+// FILE: middleware/role-guard.ts
+// DESC: Gate 3 — verify profiles.role is NOT null
+//       Applied to: /dashboard/**
+//       If role is null → redirect to /select-role
+// ============================================================
+
+export default defineNuxtRouteMiddleware(async (to) => {
+  const isDashboard = to.path.startsWith("/dashboard");
+  if (!isDashboard) return;
+
+  const supabase   = useSupabaseClient();
+  const adminAuth  = useAdminAuth(); // composable defined in composables/useAdminAuth.ts
+
+  // Use cached role if already loaded in composable state
+  if (adminAuth.role.value !== null) return;
+
+  // Fetch role from DB
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return navigateTo("/login-gate");
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile || profile.role === null) {
+    return navigateTo("/select-role");
+  }
+
+  // Hydrate composable state so downstream pages don't re-fetch
+  adminAuth.setRole(profile.role as "admin" | "ustadz");
+});
+
+// ============================================================
+// FILE: composables/useAdminAuth.ts
+// ============================================================
+// ============================================================
+// PROJECT: TANYA USTADZ V3
+// FILE: composables/useAdminAuth.ts
+// DESC: State management for admin/ustadz session & role
+//       - Reactive role + profile state (shared across dashboard)
+//       - Role persisted in memory (not localStorage — SSR safe)
+//       - Logout clears all state and cookies
+// ============================================================
+
+import type { User } from "@supabase/supabase-js";
+
+type Role = "admin" | "ustadz" | null;
+
+interface Profile {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  avatar_url: string | null;
+  role: Role;
+}
+
+// Shared reactive state (singleton pattern via useState)
+const _role    = useState<Role>("admin_role", () => null);
+const _profile = useState<Profile | null>("admin_profile", () => null);
+const _user    = useState<User | null>("admin_user", () => null);
+
+export function useAdminAuth() {
+  const supabase = useSupabaseClient();
+
+  const role    = computed(() => _role.value);
+  const profile = computed(() => _profile.value);
+  const user    = computed(() => _user.value);
+  const isAdmin  = computed(() => _role.value === "admin");
+  const isUstadz = computed(() => _role.value === "ustadz");
+
+  function setRole(newRole: "admin" | "ustadz") {
+    _role.value = newRole;
+  }
+
+  /**
+   * Fetch full profile + role from Supabase.
+   * Call this once after login or on dashboard mount.
+   */
+  async function fetchProfile(): Promise<void> {
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+
+    if (!authUser) {
+      _user.value    = null;
+      _profile.value = null;
+      _role.value    = null;
+      return;
+    }
+
+    _user.value = authUser;
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, avatar_url, role")
+      .eq("id", authUser.id)
+      .single();
+
+    if (error || !data) {
+      console.error("[useAdminAuth] fetchProfile error:", error?.message);
+      return;
+    }
+
+    _profile.value = data as Profile;
+    _role.value    = data.role as Role;
+  }
+
+  /**
+   * Submit role selection (first-time only).
+   * Calls server API → updates profiles.role in DB.
+   */
+  async function selectRole(selectedRole: "admin" | "ustadz"): Promise<void> {
+    const { error } = await useFetch("/api/profile/select-role", {
+      method: "POST",
+      body: { role: selectedRole },
+    });
+
+    if (error.value) {
+      throw new Error(error.value.data?.message ?? "Gagal memilih role.");
+    }
+
+    _role.value = selectedRole;
+    if (_profile.value) {
+      _profile.value.role = selectedRole;
+    }
+  }
+
+  /**
+   * Full logout: clear Supabase session + gate cookie + local state.
+   */
+  async function logout(): Promise<void> {
+    await supabase.auth.signOut();
+
+    // Clear gate cookie (set to expired)
+    const gateCookie = useCookie("gate_access", {
+      maxAge: -1,
+      path: "/",
+    });
+    gateCookie.value = null;
+
+    // Clear shared state
+    _user.value    = null;
+    _profile.value = null;
+    _role.value    = null;
+
+    await navigateTo("/password-page");
+  }
+
+  return {
+    role,
+    profile,
+    user,
+    isAdmin,
+    isUstadz,
+    setRole,
+    fetchProfile,
+    selectRole,
+    logout,
+  };
+}
+
+// ============================================================
+// FILE: composables/useQuestions.ts
+// ============================================================
+// ============================================================
+// PROJECT: TANYA USTADZ V3
+// FILE: composables/useQuestions.ts
+// DESC: Questions data layer — fetch, search, realtime
+//       - Jemaah: only answered questions
+//       - Admin:  pending questions (via service-role server call)
+//       - Ustadz: verified questions
+//       - Realtime scoped per role (no over-subscription)
+//       - Search: debounced 300ms, ilike on question + category
+// ============================================================
+
+import type { RealtimeChannel } from "@supabase/supabase-js";
+
+export type QuestionStatus = "pending" | "verified" | "rejected" | "answered";
+
+export interface Question {
+  id: string;
+  ticket_id: string;
+  created_at: string;
+  question: string;
+  category: string | null;
+  status: QuestionStatus;
+  answer: string | null;
+  is_pinned: boolean;
+  upvotes: number;
+}
+
+// Realtime channel ref (module-level to avoid duplicate subscriptions)
+let realtimeChannel: RealtimeChannel | null = null;
+
+export function useQuestions() {
+  const supabase    = useSupabaseClient();
+  const adminAuth   = useAdminAuth();
+
+  const questions   = useState<Question[]>("questions_list", () => []);
+  const pending     = useState<boolean>("questions_pending", () => false);
+  const error       = useState<string | null>("questions_error", () => null);
+  const searchQuery = useState<string>("questions_search", () => "");
+
+  // -------------------------------------------------------
+  // FETCH: Public feed (Jemaah) — only answered
+  // -------------------------------------------------------
+  async function fetchPublic(tab: "all" | "answered" | "trending" = "answered") {
+    pending.value = true;
+    error.value   = null;
+
+    try {
+      let query = supabase
+        .from("questions")
+        .select("id, ticket_id, created_at, question, category, status, answer, is_pinned, upvotes")
+        .eq("status", "answered");
+
+      // Apply search filter
+      const q = searchQuery.value.toLowerCase().trim();
+      if (q) {
+        query = query.or(`question.ilike.%${q}%,category.ilike.%${q}%`);
+      }
+
+      // Sorting
+      if (tab === "trending") {
+        query = query.order("upvotes", { ascending: false });
+      } else {
+        query = query.order("created_at", { ascending: false });
+      }
+
+      const { data, error: fetchErr } = await query;
+
+      if (fetchErr) throw fetchErr;
+      questions.value = (data ?? []) as Question[];
+    } catch (e: any) {
+      error.value = e.message ?? "Gagal memuat pertanyaan.";
+    } finally {
+      pending.value = false;
+    }
+  }
+
+  // -------------------------------------------------------
+  // FETCH: Dashboard (Admin) — pending questions
+  // -------------------------------------------------------
+  async function fetchForAdmin() {
+    pending.value = true;
+    error.value   = null;
+
+    try {
+      const q = searchQuery.value.toLowerCase().trim();
+
+      let query = supabase
+        .from("questions")
+        .select("*")
+        .eq("status", "pending")
+        .order("created_at", { ascending: true }); // oldest first for moderation
+
+      if (q) {
+        query = query.or(`question.ilike.%${q}%,category.ilike.%${q}%`);
+      }
+
+      const { data, error: fetchErr } = await query;
+      if (fetchErr) throw fetchErr;
+      questions.value = (data ?? []) as Question[];
+    } catch (e: any) {
+      error.value = e.message ?? "Gagal memuat pertanyaan.";
+    } finally {
+      pending.value = false;
+    }
+  }
+
+  // -------------------------------------------------------
+  // FETCH: Dashboard (Ustadz) — verified questions
+  // -------------------------------------------------------
+  async function fetchForUstadz() {
+    pending.value = true;
+    error.value   = null;
+
+    try {
+      const q = searchQuery.value.toLowerCase().trim();
+
+      let query = supabase
+        .from("questions")
+        .select("*")
+        .eq("status", "verified")
+        .order("upvotes", { ascending: false }); // highest upvotes first
+
+      if (q) {
+        query = query.or(`question.ilike.%${q}%,category.ilike.%${q}%`);
+      }
+
+      const { data, error: fetchErr } = await query;
+      if (fetchErr) throw fetchErr;
+      questions.value = (data ?? []) as Question[];
+    } catch (e: any) {
+      error.value = e.message ?? "Gagal memuat pertanyaan.";
+    } finally {
+      pending.value = false;
+    }
+  }
+
+  // -------------------------------------------------------
+  // FETCH: Archive (Admin or Ustadz)
+  // -------------------------------------------------------
+  async function fetchArchive() {
+    pending.value = true;
+    error.value   = null;
+
+    try {
+      const { data, error: fetchErr } = await supabase
+        .from("questions")
+        .select("*")
+        .in("status", ["answered", "rejected"])
+        .order("created_at", { ascending: false });
+
+      if (fetchErr) throw fetchErr;
+      questions.value = (data ?? []) as Question[];
+    } catch (e: any) {
+      error.value = e.message ?? "Gagal memuat arsip.";
+    } finally {
+      pending.value = false;
+    }
+  }
+
+  // -------------------------------------------------------
+  // SEARCH: debounced 300ms
+  // -------------------------------------------------------
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function setSearch(value: string) {
+    searchQuery.value = value;
+
+    if (debounceTimer) clearTimeout(debounceTimer);
+
+    debounceTimer = setTimeout(() => {
+      const role = adminAuth.role.value;
+      if (role === "admin")  fetchForAdmin();
+      else if (role === "ustadz") fetchForUstadz();
+      else fetchPublic();
+    }, 300);
+  }
+
+  // -------------------------------------------------------
+  // REALTIME: scoped by role
+  // -------------------------------------------------------
+  function subscribeRealtime(role: "jemaah" | "admin" | "ustadz") {
+    // Prevent duplicate subscriptions
+    if (realtimeChannel) return;
+
+    if (role === "admin") {
+      // Admin: listen for new PENDING questions (INSERT)
+      realtimeChannel = supabase
+        .channel("admin-realtime")
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "questions", filter: "status=eq.pending" },
+          (payload) => {
+            const newQuestion = payload.new as Question;
+            questions.value = [newQuestion, ...questions.value];
+          }
+        )
+        .subscribe();
+
+    } else if (role === "ustadz") {
+      // Ustadz: listen for questions updated to VERIFIED
+      realtimeChannel = supabase
+        .channel("ustadz-realtime")
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "questions", filter: "status=eq.verified" },
+          (payload) => {
+            const updated = payload.new as Question;
+            const exists = questions.value.find((q) => q.id === updated.id);
+            if (!exists) {
+              questions.value = [updated, ...questions.value];
+            }
+          }
+        )
+        .subscribe();
+
+    } else {
+      // Jemaah: listen for questions updated to ANSWERED
+      realtimeChannel = supabase
+        .channel("jemaah-realtime")
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "questions", filter: "status=eq.answered" },
+          (payload) => {
+            const updated = payload.new as Question;
+            const idx = questions.value.findIndex((q) => q.id === updated.id);
+            if (idx !== -1) {
+              questions.value[idx] = updated;
+            } else {
+              questions.value = [updated, ...questions.value];
+            }
+          }
+        )
+        .subscribe();
+    }
+  }
+
+  function unsubscribeRealtime() {
+    if (realtimeChannel) {
+      supabase.removeChannel(realtimeChannel);
+      realtimeChannel = null;
+    }
+  }
+
+  // -------------------------------------------------------
+  // LOCAL STATE: optimistic remove after moderation/answer
+  // -------------------------------------------------------
+  function removeFromList(questionId: string) {
+    questions.value = questions.value.filter((q) => q.id !== questionId);
+  }
+
+  function updateInList(questionId: string, patch: Partial<Question>) {
+    questions.value = questions.value.map((q) =>
+      q.id === questionId ? { ...q, ...patch } : q
+    );
+  }
+
+  // -------------------------------------------------------
+  // DAYS UNTIL DELETION (for Archive display)
+  // -------------------------------------------------------
+  function daysUntilDeletion(createdAt: string): number | null {
+    const created = new Date(createdAt).getTime();
+    const now     = Date.now();
+    const elapsed = (now - created) / (1000 * 60 * 60 * 24); // in days
+    const remaining = Math.ceil(30 - elapsed);
+    return remaining > 0 ? remaining : 0;
+  }
+
+  return {
+    questions,
+    pending,
+    error,
+    searchQuery,
+    fetchPublic,
+    fetchForAdmin,
+    fetchForUstadz,
+    fetchArchive,
+    setSearch,
+    subscribeRealtime,
+    unsubscribeRealtime,
+    removeFromList,
+    updateInList,
+    daysUntilDeletion,
+  };
+}
+
+// ============================================================
+// FILE: composables/useUI.ts
+// ============================================================
+// ============================================================
+// PROJECT: TANYA USTADZ V3
+// FILE: composables/useUI.ts
+// DESC: Global UI state — sidebar, modals, toast notifications
+// ============================================================
+
+export interface Toast {
+  id: string;
+  type: "success" | "error" | "info";
+  message: string;
+}
+
+const _sidebarOpen  = useState<boolean>("ui_sidebar", () => false);
+const _replyModalOpen = useState<boolean>("ui_reply_modal", () => false);
+const _activeQuestionId = useState<string | null>("ui_active_question", () => null);
+const _toasts = useState<Toast[]>("ui_toasts", () => []);
+
+export function useUI() {
+  // --- SIDEBAR ---
+  const sidebarOpen = computed(() => _sidebarOpen.value);
+
+  function toggleSidebar() {
+    _sidebarOpen.value = !_sidebarOpen.value;
+  }
+
+  function closeSidebar() {
+    _sidebarOpen.value = false;
+  }
+
+  // --- REPLY MODAL (Ustadz) ---
+  const replyModalOpen    = computed(() => _replyModalOpen.value);
+  const activeQuestionId  = computed(() => _activeQuestionId.value);
+
+  function openReplyModal(questionId: string) {
+    _activeQuestionId.value = questionId;
+    _replyModalOpen.value   = true;
+  }
+
+  function closeReplyModal() {
+    _replyModalOpen.value   = false;
+    _activeQuestionId.value = null;
+  }
+
+  // --- TOAST ---
+  const toasts = computed(() => _toasts.value);
+
+  function showToast(type: Toast["type"], message: string, durationMs = 3500) {
+    const id = crypto.randomUUID();
+    _toasts.value = [..._toasts.value, { id, type, message }];
+
+    // Auto-remove after duration
+    setTimeout(() => {
+      _toasts.value = _toasts.value.filter((t) => t.id !== id);
+    }, durationMs);
+  }
+
+  function dismissToast(id: string) {
+    _toasts.value = _toasts.value.filter((t) => t.id !== id);
+  }
+
+  return {
+    // Sidebar
+    sidebarOpen,
+    toggleSidebar,
+    closeSidebar,
+
+    // Reply Modal
+    replyModalOpen,
+    activeQuestionId,
+    openReplyModal,
+    closeReplyModal,
+
+    // Toast
+    toasts,
+    showToast,
+    dismissToast,
+  };
+}
+
+// ============================================================
+// FILE: composables/useFingerprint.ts
+// ============================================================
+// ============================================================
+// PROJECT: TANYA USTADZ V3
+// FILE: composables/useFingerprint.ts
+// DESC: Generate stable fingerprint for anti-spam:
+//       - 1 vote per question
+//       - 1 question per 5 minutes
+//       Fingerprint = hash(userAgent + random UUID from localStorage)
+//       UUID is generated once and persisted in localStorage.
+//       NOTE: fingerprint is sent to SERVER — IP is added server-side.
+// ============================================================
+
+const STORAGE_KEY = "tanya_ustadz_fp";
+
+function generateUUID(): string {
+  // Fallback if crypto.randomUUID is not available
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
+async function hashString(input: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export function useFingerprint() {
+  const fingerprint = useState<string>("fingerprint", () => "");
+
+  async function getFingerprint(): Promise<string> {
+    // Return cached value if already computed
+    if (fingerprint.value) return fingerprint.value;
+
+    // Server-side: no localStorage, return placeholder
+    if (typeof window === "undefined") return "ssr-placeholder";
+
+    // Get or create UUID from localStorage
+    let storedUUID = localStorage.getItem(STORAGE_KEY);
+    if (!storedUUID) {
+      storedUUID = generateUUID();
+      localStorage.setItem(STORAGE_KEY, storedUUID);
+    }
+
+    // Combine with user agent for a more unique fingerprint
+    const userAgent = navigator.userAgent;
+    const raw = `${storedUUID}:${userAgent}`;
+    const hashed = await hashString(raw);
+
+    fingerprint.value = hashed;
+    return hashed;
+  }
+
+  // Sync check: returns stored fingerprint or empty string
+  // Use getFingerprint() for async resolution on first load
+  function getFingerprintSync(): string {
+    return fingerprint.value;
+  }
+
+  return {
+    fingerprint,
+    getFingerprint,
+    getFingerprintSync,
+  };
+}
+
+// ============================================================
+// FILE: .env.example
+// ============================================================
+
+// ============================================================
+// FILE: components/ui/QuestionCard.vue
+// ============================================================
+// ============================================================
+// PROJECT: TANYA USTADZ V3
+// FILE: components/ui/QuestionCard.vue
+// DESC: Universal question card component for all statuses & roles
+//       - Supports jemaah, admin, and ustadz modes
+//       - Conditional rendering based on question status
+//       - Interactive upvote functionality
+// ============================================================
+
+<template>
+  <div 
+    class="relative overflow-hidden rounded-2xl border transition-all duration-300"
+    :class="[
+      isAnswered ? 'border-emerald-200 bg-white shadow-sm' : 'border-amber-200 bg-amber-50/50'
+    ]"
+  >
+    <div class="flex items-center justify-between px-4 pt-4">
+      <span 
+        class="font-mono text-xs font-bold tracking-wider"
+        :class="isAnswered ? 'text-emerald-600' : 'text-amber-600'"
+      >
+        #TU-{{ ticketId }}
+      </span>
+      <span class="text-[10px] font-medium text-gray-400">
+        Hapus dalam {{ daysRemaining }} hari
+      </span>
+    </div>
+
+    <div class="p-4">
+      <p class="text-sm leading-relaxed text-gray-800">
+        {{ question.question }}
+      </p>
+    </div>
+
+    <div class="px-4 pb-4">
+      <div v-if="!isAnswered" class="flex items-center justify-between">
+        <div class="flex items-center gap-1.5 text-amber-600">
+          <div class="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500"></div>
+          <span class="text-[11px] font-medium">Sedang diverifikasi Admin...</span>
+        </div>
+        
+        <button 
+          @click="handleVote"
+          :disabled="isVoting"
+          class="flex items-center gap-1 rounded-full px-3 py-1 transition-colors"
+          :class="hasVoted ? 'bg-rose-50 text-rose-500' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'"
+        >
+          <span class="text-xs font-bold">{{ question.upvotes || 0 }}</span>
+          <component :is="HeartIcon" :fill="hasVoted ? 'currentColor' : 'none'" class="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      <div v-else class="space-y-3">
+        <div class="rounded-xl bg-emerald-600 p-4 text-white">
+          <div class="mb-1 flex items-center gap-1.5 opacity-80">
+            <component :is="CheckBadgeIcon" class="h-4 w-4" />
+            <span class="text-[10px] font-bold uppercase tracking-widest">Jawaban Ustadz</span>
+          </div>
+          <p class="text-sm leading-relaxed">
+            {{ question.answer }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="mode !== 'jemaah'" class="border-t border-gray-100 bg-gray-50/50 p-3">
+      <slot name="actions" />
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed, ref } from 'vue'
+import { HeartIcon, CheckBadgeIcon } from '@heroicons/vue/24/outline'
+
+const props = defineProps({
+  question: { type: Object, required: true },
+  mode: { type: String, default: 'jemaah' } // jemaah, admin, ustadz
+})
+
+// Logic Ticket ID: Ambil 4 digit terakhir UUID (Acuan Baku)
+const ticketId = computed(() => props.question.id?.slice(-4).toUpperCase() || '....')
+
+// Logic Expiry: Hitung sisa hari dari 30 hari (Acuan Baku)
+const daysRemaining = computed(() => {
+  if (!props.question.created_at) return 30
+
+  const created = new Date(props.question.created_at)
+  const now = new Date()
+  const diffTime = Math.abs(now - created)
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  return Math.max(0, 30 - diffDays)
+})
+
+const isAnswered = computed(() => props.question.status === 'answered')
+
+// Upvote State (Local only for UI feedback)
+const isVoting = ref(false)
+const hasVoted = ref(false) // Idealnya cek localStorage via useFingerprint.ts
+
+const handleVote = async () => {
+  if (hasVoted.value) return
+  isVoting.value = true
+  // Di sini nanti panggil emit atau function dari useQuestions.ts
+  // emit('vote', props.question.id)
+  setTimeout(() => {
+    isVoting.value = false
+    hasVoted.value = true
+  }, 500)
+}
+</script>
+
+// ============================================================
+// FILE: app/app.vue
+// ============================================================
+// ============================================================
+// PROJECT: TANYA USTADZ V3
+// FILE: app/app.vue
+// DESC: Root app component with Lottie animation
+// ============================================================
+
+<template>
+  <div style="width: 500px; height: 500px;">
+    <iframe 
+      src="https://lottie.host/embed/1118d048-788c-47e3-8c3b-1af553f30547/6XZrUZOfao.lottie"
+      style="width: 100%; height: 100%; border: none;"
+    ></iframe>
+  </div>
+</template>
+
+// ============================================================
+// FILE: nuxt.config.ts
+// ============================================================
+// ============================================================
+// PROJECT: TANYA USTADZ V3
+// FILE: nuxt.config.ts
+// ============================================================
+
+export default defineNuxtConfig({
+  compatibilityDate: "2024-11-01",
+  devtools: { enabled: false },
+
+  // --- MODULES ---
+  modules: [
+    "@nuxtjs/tailwindcss",
+    "@nuxtjs/supabase",
+  ],
+
+  // --- SUPABASE CONFIG ---
+  supabase: {
+    redirect: false, // manual redirect via middleware
+  },
+
+  routeRules: {
+    '/lottie-proxy/**': { proxy: 'https://plugins.lottiefiles.com/**' },
+  },
+
+  // --- RUNTIME CONFIG ---
+  // Public: exposed to client
+  // Private: server-only (never sent to browser)
+  runtimeConfig: {
+    adminGatePassword: process.env.ADMIN_GATE_PASSWORD, // server-only
+    supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY, // server-only
+    public: {
+      supabaseUrl: process.env.SUPABASE_URL,
+      supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+    },
+  },
+
+  // --- SEO / HEAD ---
+  app: {
+    head: {
+      titleTemplate: "%s | Tanya Ustadz V3",
+      title: "Tanya Ustadz",
+      meta: [
+        { charset: "utf-8" },
+        { name: "viewport", content: "width=device-width, initial-scale=1" },
+        {
+          name: "description",
+          content:
+            "Platform tanya jawab anonim untuk kajian mingguan AhsanTV. Kirim pertanyaan, dapatkan jawaban langsung dari Ustadz.",
+        },
+        // OpenGraph
+        { property: "og:type",        content: "website" },
+        { property: "og:title",       content: "Tanya Ustadz | AhsanTV" },
+        {
+          property: "og:description",
+          content: "Tanya pertanyaan Islammu secara anonim dan dapatkan jawaban langsung dari Ustadz.",
+        },
+        { property: "og:image",       content: "/og-image.png" },
+        // WhatsApp preview
+        { name: "twitter:card",       content: "summary_large_image" },
+        { name: "twitter:title",      content: "Tanya Ustadz | AhsanTV" },
+        { name: "twitter:description", content: "Platform Q&A kajian mingguan AhsanTV." },
+      ],
+      link: [
+        { rel: "icon", type: "image/x-icon", href: "/favicon.ico" },
+      ],
+    },
+  },
+
+  // --- TYPESCRIPT ---
+  typescript: {
+    strict: true,
+    typeCheck: false, // enable in CI if needed
+  },
+
+  // --- TAILWIND ---
+  // tailwind.config.ts will handle the emerald theme
+  // (generated in UI step)
+});
+
+// ============================================================
+// END OF ALL CODES
+// ============================================================

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary-green": "#157B4B",
+                        "surface-grey-green": "#f1f4f0",
+                        "border-light": "#e2e8e0"
+                    },
+                    borderRadius: { "card": "1.25rem" },
+                    fontFamily: { "headline": ["Plus Jakarta Sans"], "body": ["Inter"] }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Mencegah browser memaksa dark mode pada elemen tertentu */
+        :root { color-scheme: light; }
+        
+        body { 
+            background-color: transparent !important; 
+            margin: 0; 
+            padding: 0;
+            color: #000000; /* Default teks hitam */
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Memastikan teks pada kartu hijau tetap putih */
+        .text-force-white { color: #FFFFFF !important; }
+        /* Memastikan teks pada kartu biasa tetap hitam/gelap */
+        .text-force-black { color: #000000 !important; }
+        .text-force-dim { color: #4b5563 !important; }
+
+        #timeline-axis {
+            position: absolute;
+            bottom: 20px; 
+            left: 0;
+            height: 20px;
+            z-index: 10;
+        }
+
+        #timeline-track {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            height: 2px;
+            background: #e2e8e0;
+            transform: translateY(-50%);
+            z-index: 1;
+        }
+    </style>
+</head>
+<body class="bg-transparent">
+    <div class="w-full h-[250px] bg-white overflow-hidden flex flex-col font-headline relative">
+        
+        <div class="px-5 pt-4 pb-2 flex items-center justify-between bg-white z-30 relative">
+            <div class="flex items-baseline gap-2">
+                <span class="text-primary-green font-extrabold text-sm tracking-widest uppercase">JADWAL SIARAN</span>
+                <span id="current-date" class="text-force-dim font-medium text-xs">Memuat...</span>
+            </div>
+            <div id="live-indicator" class="hidden items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                <span class="text-[10px] font-bold text-red-500 uppercase tracking-tighter">On Air</span>
+            </div>
+        </div>
+
+        <div class="flex-1 relative overflow-x-auto no-scrollbar scroll-smooth">
+            <div id="timeline-axis">
+                <div id="timeline-track"></div>
+                <div id="dots-container" class="relative w-full h-full flex gap-4 px-5 items-center z-10"></div>
+            </div>
+
+            <div id="schedule-container" class="flex items-stretch gap-4 px-5 pt-2 pb-20 relative z-20">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://zvuiumzuotwfgbbenhcm.supabase.co'; 
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2dWl1bXp1b3R3ZmdiYmVuaGNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwNjk5NjIsImV4cCI6MjA5MTY0NTk2Mn0.jGGhrpNVmclXM9I8ss7R5ukJNLQjaCMcAFkqYDcJLrU';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const iconMapper = (iconName) => {
+            const map = {
+                'waking_up': 'wb_twilight',
+                'sholat': 'mosque',
+                'study': 'menu_book',
+                'rest': 'bedtime'
+            };
+            return map[iconName] || iconName || 'play_circle';
+        };
+
+        async function initSchedule() {
+            const now = new Date();
+            const days = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const currentDay = days[now.getDay()];
+            const currentHHmm = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
+            
+            document.getElementById('current-date').innerText = `${currentDay}, ${now.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}`;
+
+            try {
+                const { data: schedules, error } = await supabaseClient
+                    .from('jadwal_siaran')
+                    .select('*')
+                    .eq('hari', currentDay)
+                    .order('jam_mulai', { ascending: true });
+
+                if (error) throw error;
+
+                const cardsContainer = document.getElementById('schedule-container');
+                const dotsContainer = document.getElementById('dots-container');
+                const track = document.getElementById('timeline-track');
+                
+                cardsContainer.innerHTML = ''; 
+                dotsContainer.innerHTML = '';
+
+                let activeCardId = null;
+
+                schedules.forEach((item, index) => {
+                    const nextItem = schedules[index + 1];
+                    const isRunning = (currentHHmm >= item.jam_mulai && (!nextItem || currentHHmm < nextItem.jam_mulai));
+                    if (isRunning) activeCardId = `card-${index}`;
+
+                    const isIklan = item.is_iklan;
+                    
+                    // Style dasar kartu
+                    let cardBase = isRunning 
+                        ? "bg-primary-green shadow-lg ring-4 ring-primary-green/20 scale-105 z-10" 
+                        : (isIklan ? "bg-surface-grey-green border-dashed border-primary-green/30" : "bg-white border-border-light shadow-sm");
+
+                    // Warna Teks (Menggunakan class force agar tidak berubah saat dark mode)
+                    let textClass = isRunning ? "text-force-white" : "text-force-black";
+                    let subTextClass = isRunning ? "text-force-white opacity-80" : "text-force-dim";
+                    
+                    let timeBadgeClass = isRunning 
+                        ? "bg-white text-primary-green" 
+                        : (item.is_live ? "text-white bg-primary-green" : "text-primary-green bg-lime-50");
+
+                    const validIcon = iconMapper(item.icon);
+
+                    const cardHtml = `
+                        <div id="card-${index}" class="flex-shrink-0 ${isIklan ? 'w-[180px]' : 'w-[260px]'} flex flex-col relative transition-all duration-500">
+                            <div class="flex-1 border rounded-card p-3 ${cardBase} flex flex-col justify-between">
+                                <div>
+                                    <div class="flex justify-between items-start mb-1">
+                                        <span class="text-[10px] font-bold ${timeBadgeClass} px-2 py-0.5 rounded-full uppercase">
+                                            ${item.jam_mulai}
+                                        </span>
+                                        <span class="material-symbols-outlined text-lg ${isRunning ? 'text-force-white' : (item.is_live ? 'text-primary-green' : 'text-force-dim')}" 
+                                              style="${(item.is_live || isRunning) ? "font-variation-settings: 'FILL' 1;" : ''}">
+                                            ${validIcon}
+                                        </span>
+                                    </div>
+                                    <h3 class="font-bold text-[13px] leading-tight mb-0.5 line-clamp-2 ${textClass}">
+                                        ${item.acara}
+                                    </h3>
+                                </div>
+                                <p class="text-[11px] font-medium truncate mt-1 ${subTextClass}">${item.pemateri || ''}</p>
+                            </div>
+                        </div>
+                    `;
+                    cardsContainer.innerHTML += cardHtml;
+
+                    const dotHtml = `
+                        <div class="${isIklan ? 'w-[180px]' : 'w-[260px]'} flex-shrink-0 flex items-center justify-center h-full">
+                            <div class="${isRunning ? 'w-4 h-4 bg-white shadow-[0_0_8px_rgba(21,123,75,0.6)]' : 'w-3 h-3 bg-white'} rounded-full border-2 border-primary-green flex items-center justify-center relative z-20 transition-all duration-300">
+                                ${isRunning ? '<div class="w-1.5 h-1.5 rounded-full bg-primary-green animate-pulse"></div>' : ''}
+                            </div>
+                        </div>
+                    `;
+                    dotsContainer.innerHTML += dotHtml;
+                });
+
+                setTimeout(() => {
+                    const totalWidth = cardsContainer.scrollWidth;
+                    if(track) track.style.width = totalWidth + "px";
+                    const axis = document.getElementById('timeline-axis');
+                    if(axis) axis.style.width = totalWidth + "px";
+                    
+                    if (activeCardId) {
+                        const activeEl = document.getElementById(activeCardId);
+                        activeEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                        document.getElementById('live-indicator').classList.replace('hidden', 'flex');
+                    }
+                }, 200);
+
+            } catch (err) {
+                console.error('Error:', err.message);
+            }
+        }
+        document.addEventListener('DOMContentLoaded', initSchedule);
+    </script>
+</body>
+</html>

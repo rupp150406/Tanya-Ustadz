@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+
+<html lang="id"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Plus+Jakarta+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-fixed": "#2f1500",
+                    "tertiary-fixed": "#ffdcc3",
+                    "surface-container-lowest": "#ffffff",
+                    "error-container": "#ffdad6",
+                    "outline": "#6d7a72",
+                    "outline-variant": "#bccac0",
+                    "background": "#f9f9ff",
+                    "secondary-container": "#adedd3",
+                    "inverse-surface": "#293041",
+                    "on-surface": "#141c2b",
+                    "primary-fixed-dim": "#68dba9",
+                    "tertiary": "#8d4b00",
+                    "on-tertiary-fixed-variant": "#6e3900",
+                    "surface-variant": "#dbe2f8",
+                    "surface-tint": "#006c4a",
+                    "on-secondary-fixed-variant": "#0b513d",
+                    "surface-container-high": "#e0e8fd",
+                    "error": "#ba1a1a",
+                    "secondary-fixed": "#b0f0d6",
+                    "inverse-on-surface": "#ecf0ff",
+                    "on-primary-container": "#f5fff7",
+                    "secondary": "#2b6954",
+                    "on-secondary-fixed": "#002117",
+                    "inverse-primary": "#68dba9",
+                    "on-secondary-container": "#306d58",
+                    "on-surface-variant": "#3d4a42",
+                    "on-primary-fixed-variant": "#005137",
+                    "on-background": "#141c2b",
+                    "on-secondary": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "on-primary-fixed": "#002114",
+                    "surface-dim": "#d2daef",
+                    "on-primary": "#ffffff",
+                    "primary": "#006948",
+                    "surface": "#f9f9ff",
+                    "surface-bright": "#f9f9ff",
+                    "surface-container": "#e8eeff",
+                    "surface-container-low": "#f1f3ff",
+                    "primary-container": "#00855d",
+                    "on-error": "#ffffff",
+                    "primary-fixed": "#85f8c4",
+                    "on-error-container": "#93000a",
+                    "surface-container-highest": "#dbe2f8",
+                    "secondary-fixed-dim": "#95d3ba",
+                    "tertiary-fixed-dim": "#ffb77d",
+                    "on-tertiary-container": "#fffbff",
+                    "tertiary-container": "#b15f00"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Manrope"],
+                    "body": ["Plus Jakarta Sans"],
+                    "label": ["Plus Jakarta Sans"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .fill-icon {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-surface font-body text-on-surface">
+<main class="max-w-md mx-auto px-4 pb-12 pt-8">
+<!-- Search Section -->
+<div class="mb-8">
+<div class="relative group">
+<div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline" data-icon="search">search</span>
+</div>
+<input class="w-full h-14 pl-12 pr-4 rounded-full border-none bg-surface-container-high text-on-surface focus:ring-2 focus:ring-primary/20 placeholder:text-outline/60 transition-all" placeholder="Cari jawaban atau topik hukum..." type="text"/>
+<div class="absolute right-4 top-14 mt-2">
+<p class="text-[10px] text-outline/40 italic">Mengetik... (300ms delay)</p>
+</div>
+</div>
+</div>
+<!-- Featured Section (Editorial Style) -->
+<div class="mb-10 relative overflow-hidden rounded-3xl bg-primary h-48 flex flex-col justify-end p-6">
+<div class="absolute inset-0 opacity-40">
+<img class="w-full h-full object-cover" data-alt="Intricate geometric Islamic pattern in emerald green with soft glowing light effects" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCOPYVBUV_REtcdShN5VHzcSIijDt0RQWxYIHh4gdMyNNYlcCckD7yIEltm2SE-EyrvMa3DfvV6gCUwmFvMDKT4nfel-9nxeaygkYI7f3DKySpXwCZuN6Ufndz7bmQeYgflHKTNcULVLIMFVGdTc8j98A92hp_T6Z5frOaUJc4_eDOa_a_f4cNbE_t6an9EysBQsfpiWpX5wXqo4RR7jpnidKvcnElH1dCVcyoaZKxF172kj-vIG24B0R7lMX6Z85HIpnbsbshEaKM"/>
+</div>
+<div class="relative z-10">
+<p class="text-primary-fixed text-xs font-bold tracking-widest mb-1">TANYA USTADZ EKSKLUSIF</p>
+<h2 class="font-headline text-white text-2xl font-extrabold leading-tight">Mencari Ketenangan Melalui Ilmu Syar'i</h2>
+</div>
+</div><!-- Navigation Tabs -->
+<nav class="flex justify-center mb-8 px-2">
+<div class="inline-flex bg-surface-container-low p-1.5 rounded-full shadow-sm border border-outline-variant/10">
+<button class="px-6 py-2 rounded-full text-xs font-bold transition-all bg-primary text-white shadow-md shadow-primary/20">
+      Semua
+    </button>
+<button class="px-6 py-2 rounded-full text-xs font-bold transition-all text-on-surface-variant hover:text-primary">
+      Terjawab
+    </button>
+<button class="px-6 py-2 rounded-full text-xs font-bold transition-all text-on-surface-variant hover:text-primary">
+      Belum Dijawab
+    </button>
+</div>
+</nav>
+<!-- Question List -->
+<div class="space-y-6">
+<!-- Question Card: Answered -->
+<article class="bg-surface-container-lowest rounded-3xl p-6 relative overflow-hidden shadow-[0px_12px_32px_rgba(20,28,43,0.04)]">
+<div class="absolute top-0 left-0 w-1 h-full bg-primary"></div>
+<div class="flex justify-between items-start mb-4">
+<span class="text-[10px] font-bold text-primary bg-secondary-container/30 px-2 py-1 rounded">#TU-8821</span>
+<span class="text-[10px] text-outline">2 jam yang lalu</span>
+</div>
+<h3 class="font-headline text-on-surface font-bold text-lg mb-6 leading-snug">Bagaimana hukumnya bekerja di bank konvensional dalam pandangan fiqh kontemporer?</h3>
+<div class="flex items-center gap-3 p-4 rounded-2xl bg-surface-container-low mb-2">
+<img class="w-10 h-10 rounded-full object-cover ring-2 ring-white" data-alt="Portrait of a friendly middle-aged Ustadz with a neat white beard wearing a traditional peci" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAdc6F7yJKjHsFGl7jeWsNU6yoRegxR2JZGVtMk0jdHpVauJTrVKqDWeTPKBHJ3mrmDsV1gFvxQtv9RK8g6wI29UyFpJbXvqne3lNe9OpibUtqXLuI5EuYklq5HmBGbRmA8E9ixPl4j2VIosfuPkyWVUlgkyRnP0750AXd49q5JhlKa2GmZjYM3LUAMN-WEnHHkikktCDMnhHfI3qUhAjdca5-Yp8vcpwFCRh_z25iRdcPVi6c8UYvn9eKBbCB8sQRYk_LzKZexckk"/>
+<div>
+<p class="text-xs font-bold text-on-surface">Ustadz Khalid Rizki</p>
+<p class="text-[10px] text-outline">Telah menjawab</p>
+</div>
+</div>
+<div class="mt-4"><p class="text-sm text-on-surface-variant line-clamp-3 leading-relaxed italic">"Bismillah, hukum asal bekerja pada lembaga yang mengandung unsur riba adalah terlarang. Namun ada beberapa rincian jika..."</p>
+<div class="flex items-center justify-between mt-4">
+<button class="text-primary text-xs font-bold flex items-center gap-1 hover:translate-x-1 transition-transform duration-200">
+    Baca Selengkapnya
+    <span class="material-symbols-outlined text-sm" data-icon="arrow_forward">arrow_forward</span>
+</button>
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/5 text-primary hover:bg-primary/10 hover:scale-110 transition-all group">
+<span class="material-symbols-outlined text-sm transition-all" data-icon="favorite">favorite</span>
+<span class="text-[11px] font-bold">1,240</span>
+</button>
+</div></div>
+</article>
+<!-- Question Card: Pending -->
+<article class="bg-surface-container-lowest rounded-3xl p-6 shadow-[0px_8px_24px_rgba(20,28,43,0.02)] border border-outline-variant/10">
+<div class="flex justify-between items-start mb-4">
+<span class="text-[10px] font-bold text-tertiary bg-tertiary-fixed/30 px-2 py-1 rounded">#TU-8822</span>
+<span class="text-[10px] text-outline">5 jam yang lalu</span>
+</div>
+<h3 class="font-headline text-on-surface font-bold text-lg mb-6 leading-snug">Apakah sah shalat jika kita tidak sengaja menelan sisa makanan di sela gigi?</h3>
+<div class="flex items-center justify-between"><div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-amber-600 text-sm" data-icon="schedule">schedule</span>
+<span class="text-[11px] font-semibold text-amber-700">Menunggu Verifikasi</span>
+</article>
+<!-- Question Card: Answered (Alternate Layout) -->
+<article class="bg-surface-container-lowest rounded-3xl p-6 relative overflow-hidden shadow-[0px_12px_32px_rgba(20,28,43,0.04)]">
+<div class="absolute top-0 left-0 w-1 h-full bg-primary"></div>
+<div class="flex justify-between items-start mb-4">
+<span class="text-[10px] font-bold text-primary bg-secondary-container/30 px-2 py-1 rounded">#TU-8819</span>
+<span class="text-[10px] text-outline">Kemarin</span>
+</div>
+<h3 class="font-headline text-on-surface font-bold text-lg mb-6 leading-snug">Niat puasa Daud digabung dengan puasa sunnah Senin Kamis.</h3>
+<div class="flex items-center gap-3 p-4 rounded-2xl bg-surface-container-low mb-2">
+<img class="w-10 h-10 rounded-full object-cover ring-2 ring-white" data-alt="Elderly scholar with gentle eyes wearing a grey turban in a library setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD_Bh9HNMq-c7xQ3vTPaVLUWsUzAKe52hqyH9RGkTLtrOqSjiI4O3FSmPUMpx8TNhixv1EOcsDAj2sP-g9yW5QuWSasT4YjL55UhZg-7vh9-tLYjZGIMlASYtDWn7y_MUpfS3054FKvRA7lVsdbV_V5IWDqUgaH3YVxQpIrn5IIk2ePGKWnutoZMVf0OXopmgJgNe7GvFwawxKfRObfsv1ebS19wdMdPn9x0O2JvAH1bSUzq4b8sqxOL6Ovj9wGeUpBjFILUkAG1Tc"/>
+<div>
+<p class="text-xs font-bold text-on-surface">KH. Ahmad Mansyur</p>
+<p class="text-[10px] text-outline">Telah menjawab</p>
+</div>
+</div>
+<div class="mt-4"><p class="text-sm text-on-surface-variant line-clamp-2 leading-relaxed italic">"Boleh menggabungkan beberapa niat ibadah sunnah dalam satu waktu selama..."</p>
+<div class="flex items-center justify-between mt-4">
+<button class="text-primary text-xs font-bold flex items-center gap-1 hover:translate-x-1 transition-transform duration-200">
+    Baca Selengkapnya
+    <span class="material-symbols-outlined text-sm" data-icon="arrow_forward">arrow_forward</span>
+</button>
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/5 text-primary hover:bg-primary/10 hover:scale-110 transition-all group">
+<span class="material-symbols-outlined text-sm transition-all" data-icon="favorite">favorite</span>
+<span class="text-[11px] font-bold">312</span>
+</button>
+</div></div>
+</article>
+<!-- Question Card: Pending (New) -->
+<article class="bg-surface-container-lowest rounded-3xl p-6 shadow-[0px_8px_24px_rgba(20,28,43,0.02)] border border-outline-variant/10">
+<div class="flex justify-between items-start mb-4">
+<span class="text-[10px] font-bold text-tertiary bg-tertiary-fixed/30 px-2 py-1 rounded">#TU-8825</span>
+<span class="text-[10px] text-outline">Baru saja</span>
+</div>
+<h3 class="font-headline text-on-surface font-bold text-lg mb-6 leading-snug">Bagaimana cara menjaga istiqomah dalam beribadah setelah bulan Ramadhan berlalu?</h3>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-amber-600 text-sm" data-icon="schedule">schedule</span>
+<span class="text-[11px] font-semibold text-amber-700">Belum Dijawab</span>
+</div>
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/5 text-primary hover:bg-primary/10 hover:scale-110 transition-all">
+<span class="material-symbols-outlined text-sm" data-icon="favorite">favorite</span>
+<span class="text-[11px] font-bold">0</span>
+</button>
+</div>
+</article></div>
+</main>
+<!-- Floating Action Button -->
+<div class="fixed bottom-6 right-6 z-50 md:right-[calc(50%-12rem)]">
+<button class="bg-gradient-to-br from-primary to-primary-container text-white h-16 px-6 rounded-full shadow-[0px_12px_32px_rgba(0,105,72,0.3)] flex items-center gap-3 active:scale-95 transition-all hover:brightness-110">
+<span class="material-symbols-outlined fill-icon" data-icon="add_comment" style="font-variation-settings: 'FILL' 1;">add_comment</span>
+<span class="font-bold text-sm tracking-wide">Tanya Ustadz</span>
+</button>
+</div>
+</body></html>
