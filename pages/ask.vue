@@ -1,6 +1,6 @@
 <script setup>
 // 1. Import composables
-const { addQuestion, pending: isSubmitting } = useQuestions()
+const { addQuestion, fetchPublic, pending: isSubmitting } = useQuestions()
 const { fingerprint, getFingerprint } = useFingerprint()
 
 const category = ref('Fikih')
@@ -32,25 +32,34 @@ const triggerAlert = (title, message, success = false) => {
   showAlert.value = true
 }
 
-const closeAlert = () => {
+// FIX: closeAlert sekarang melakukan pre-fetch sebelum navigasi.
+//
+// Masalah awal: navigateTo('/') di SPA tidak me-mount ulang index.vue,
+// sehingga onMounted di index.vue tidak jalan lagi dan data lama masih tampil.
+//
+// Solusi: Sebelum berpindah halaman, panggil fetchPublic('all', fp) untuk
+// memperbarui shared state `questions` (via useState). Karena state ini
+// di-share di seluruh aplikasi, begitu index.vue dirender, computed
+// filteredQuestions langsung mendapatkan data terbaru — tanpa hard reload.
+const closeAlert = async () => {
   showAlert.value = false
   if (isSuccess.value) {
-    navigateTo('/')
+    // Pastikan fingerprint sudah tersedia (bisa dari cache)
+    const fp = fingerprint.value || await getFingerprint()
+    // Pre-populate shared state sebelum berpindah halaman
+    await fetchPublic('all', fp)
+    // Baru navigasi — index.vue langsung tampil dengan data fresh
+    await navigateTo('/')
   }
 }
 
 // 2. handleSubmit: panggil getFingerprint() sesaat sebelum kirim
-//    untuk memastikan nilai terbaru sudah siap (bukan nilai stale dari cache lama)
 const handleSubmit = async () => {
   if (!questionText.value.trim()) {
     return triggerAlert('Peringatan', 'Isi pertanyaan tidak boleh kosong.')
   }
 
   try {
-    // Selalu resolve ulang fingerprint tepat sebelum submit
-    // getFingerprint() akan mengembalikan nilai cache jika sudah ada,
-    // atau generate baru jika belum — ini memastikan fingerprint.value
-    // dan nilai yang dikirim ke server selalu sinkron
     const fp = await getFingerprint()
 
     if (!fp) {
@@ -63,7 +72,6 @@ const handleSubmit = async () => {
       fingerprint: fp,
     })
 
-    // Tampilkan alert sukses
     triggerAlert('Berhasil!', 'Pertanyaan Anda telah terkirim secara anonim.', true)
     questionText.value = ''
   } catch (err) {

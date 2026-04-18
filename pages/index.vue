@@ -13,55 +13,62 @@ const {
   unsubscribeRealtime,
 } = useQuestions()
 
-// useFingerprint: fingerprint is a reactive ref (useState), pre-populated on mount
 const { fingerprint, getFingerprint } = useFingerprint()
 
 const activeTab = ref('all')
 
 // Filter pertanyaan berdasarkan tab DAN privasi (Private Pending System)
-// computed() secara otomatis reaktif terhadap fingerprint.value dan questions.value
 const filteredQuestions = computed(() => {
   if (!questions.value) return []
 
   let list = questions.value.filter(q => {
-    // 1. Status 'answered' atau 'verified' -> tampilkan untuk semua (Public)
     if (q.status === 'answered' || q.status === 'verified') return true
 
-    // 2. Status 'pending' -> hanya tampilkan jika fingerprint cocok (milik sendiri)
     if (q.status === 'pending') {
-      // [DEBUG] Log sementara untuk mendeteksi ketidakcocokan fingerprint
-      // Hapus console.log ini setelah masalah teridentifikasi
-      console.log(
-        `[fingerprint-debug] q.id=${q.id} | DB fingerprint="${q.fingerprint}" | local fingerprint="${fingerprint.value}" | match=${q.fingerprint === fingerprint.value}`
-      )
       return !!fingerprint.value && q.fingerprint === fingerprint.value
     }
 
-    // Status lain (misal 'rejected') tidak ditampilkan di publik
     return false
   })
 
-  // Filter berdasarkan Tab
   if (activeTab.value === 'answered') return list.filter(q => q.status === 'answered')
   if (activeTab.value === 'unanswered') return list.filter(q => q.status !== 'answered')
 
   return list
 })
 
-// Fungsi pencarian — teruskan fingerprint.value agar pending tidak
-// hilang dari daftar saat user mengetik di search bar
 const handleSearch = (e) => {
   setSearch(e.target.value, fingerprint.value)
 }
 
-onMounted(async () => {
-  // PENTING: Resolve & cache fingerprint SEBELUM fetchPublic agar:
-  // 1. fingerprint.value sudah terisi saat computed pertama kali dievaluasi
-  // 2. fetchPublic menerima fingerprint sehingga server ikut mengembalikan
-  //    pertanyaan berstatus 'pending' milik pengirim ini
+// Fungsi fetch terpusat agar tidak duplikasi kode
+// antara onMounted dan onActivated
+async function loadData() {
   await getFingerprint()
   await fetchPublic('all', fingerprint.value)
+}
+
+onMounted(async () => {
+  // onMounted jalan saat pertama kali halaman dibuka (hard navigation / fresh load)
+  await loadData()
   subscribeRealtime('jemaah')
+})
+
+// FIX: Tambahkan onActivated sebagai jaring pengaman untuk SPA navigation.
+//
+// Konteks masalah: Dalam SPA (Single Page Application), saat user kembali ke '/'
+// dari '/ask' via navigateTo('/'), Vue TIDAK memanggil onMounted lagi karena
+// komponen tidak di-destroy dan di-create ulang — ia hanya diaktifkan kembali.
+//
+// Dengan pre-fetch di closeAlert (ask.vue), shared state `questions` sudah
+// diperbarui sebelum navigasi terjadi, sehingga halaman ini langsung tampil
+// dengan data fresh tanpa perlu fetch ulang.
+//
+// Namun onActivated di sini berfungsi sebagai lapisan keamanan tambahan:
+// jika user masuk via browser back button, link langsung, atau skenario lain
+// di mana pre-fetch dari ask.vue tidak terjadi — data tetap diperbarui.
+onActivated(async () => {
+  await loadData()
 })
 
 onUnmounted(() => unsubscribeRealtime())
@@ -79,7 +86,6 @@ const formatDate = (dateString) => {
   })
 }
 
-// Helper Label Status
 const getStatusLabel = (status) => {
   const labels = {
     pending: 'MENUNGGU',
