@@ -38,21 +38,24 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event);
 
   // --- INPUT EXTRACTION ---
-  const rawQuestion: string = (body?.question ?? "").trim();
-  const rawCategory: string = (body?.category ?? "").trim();
-  const fingerprint: string = (body?.fingerprint ?? "").trim();
+  // FIX BUG #1: Destructure 'category' sebagai 'rawCategory' agar tidak
+  // bentrok dengan deklarasi ulang 'category' di bawah (variable shadowing).
+  // Sebelumnya: const { question: rawQuestion, category, fingerprint: rawFingerprint } = body
+  // lalu const category = rawCategory || null — rawCategory tidak pernah ada!
+  const { question: rawQuestion, category: rawCategory, fingerprint: rawFingerprint } = body;
 
   // --- VALIDATION ---
   if (!rawQuestion) {
     throw createError({ statusCode: 400, message: "Pertanyaan tidak boleh kosong." });
   }
-  if (!fingerprint) {
+  if (!rawFingerprint) {
     throw createError({ statusCode: 400, message: "Fingerprint tidak valid." });
   }
   if (rawQuestion.length > 500) {
     throw createError({ statusCode: 400, message: "Pertanyaan maksimal 500 karakter." });
   }
 
+  // FIX BUG #1 (lanjutan): Sekarang rawCategory ada, deklarasi ini valid.
   const category = rawCategory || null;
   if (category && !(VALID_CATEGORIES as readonly string[]).includes(category)) {
     throw createError({ statusCode: 400, message: "Kategori tidak valid." });
@@ -60,7 +63,7 @@ export default defineEventHandler(async (event) => {
 
   // --- RATE LIMIT LOGIC: 5 QUESTIONS PER 5 MINUTES ---
   const ip = getClientIP(event);
-  const rateLimitKey = `${ip}:${fingerprint}`;
+  const rateLimitKey = `${ip}:${rawFingerprint}`;
   const now = Date.now();
   const userLog = submissionLog.get(rateLimitKey);
 
@@ -104,7 +107,8 @@ export default defineEventHandler(async (event) => {
     .insert([
       {
         question: safeQuestion,
-        category: safeCategory
+        category: safeCategory,
+        fingerprint: rawFingerprint
       }
     ])
     .select("id, ticket_id, created_at, status")

@@ -10,6 +10,7 @@ export interface Question {
   answer: string | null;
   is_pinned: boolean;
   upvotes: number;
+  fingerprint: string | null; // disimpan saat submit, dipakai untuk filter "private pending"
 }
 
 export const useQuestions = () => {
@@ -41,35 +42,43 @@ export const useQuestions = () => {
   // =============================
   // POST FUNCTION (SUBMIT QUESTION)
   // =============================
-  async function addQuestion(payload: { question: string, category: string, fingerprint: string }) {
-    pending.value = true
-    error.value = null
-
+  async function addQuestion(payload: { question: string; category: string; fingerprint: string }) {
+    pending.value = true;
     try {
-      // Menggunakan $fetch untuk request POST ke server/api/questions/index.post.ts
-      const response = await $fetch('/api/questions', {
+      const { data, error: err } = await useFetch('/api/questions', {
         method: 'POST',
-        body: payload
-      })
-
-      return response
+        body: payload // payload sudah termasuk fingerprint dari ask.vue
+      });
+      if (err.value) throw err.value;
+      return { data: data.value, error: null };
     } catch (e: any) {
-      // Menangkap error detail dari server (seperti pesan rate limit)
-      error.value = e.data?.message || e.message
-      throw e 
+      return { data: null, error: e };
     } finally {
-      pending.value = false
+      pending.value = false;
     }
   }
 
   // =============================
   // PUBLIC
   // =============================
-  function fetchPublic(tab: "all" | "answered" | "trending" = "answered") {
-    return fetchAPI('/api/questions', {
-      tab,
-      search: searchQuery.value
-    })
+  // FIX BUG #2 & #3: Tambahkan parameter `fingerprintValue` agar fingerprint
+  // bisa diteruskan ke server sebagai query param.
+  //
+  // Sebelumnya fungsi hanya menerima (tab: string), sehingga saat dipanggil
+  // dengan fetchPublic('all', fingerprint.value) di index.vue dan setSearch(),
+  // argumen kedua diabaikan dan fingerprint TIDAK PERNAH dikirim ke server.
+  //
+  // Cara kerja:
+  //   - Jika fingerprintValue ada → server bisa mengembalikan pending milik user ini
+  //   - Jika tidak ada → server hanya kembalikan answered/verified (publik)
+  async function fetchPublic(tab: string = 'answered', fingerprintValue?: string) {
+    const query: Record<string, string> = { tab }
+
+    if (fingerprintValue) {
+      query.fingerprint = fingerprintValue
+    }
+
+    return fetchAPI('/api/questions', query)
   }
 
   // =============================
@@ -102,13 +111,15 @@ export const useQuestions = () => {
   // =============================
   let timer: any
 
-  function setSearch(value: string) {
+  // FIX BUG #3: fingerprintValue kini benar-benar diteruskan ke fetchPublic
+  // karena fetchPublic sudah menerima parameter kedua.
+  function setSearch(value: string, fingerprintValue?: string) {
     searchQuery.value = value
 
     clearTimeout(timer)
 
     timer = setTimeout(() => {
-      fetchPublic("all")
+      fetchPublic("all", fingerprintValue)
     }, 300)
   }
 
@@ -147,7 +158,9 @@ export const useQuestions = () => {
         },
         (payload) => {
           console.log('Realtime change:', payload)
-          fetchPublic('all')
+          // Ambil fingerprint terkini saat realtime update masuk
+          const { fingerprint } = useFingerprint()
+          fetchPublic('all', fingerprint.value)
         }
       )
       .subscribe()
@@ -166,7 +179,7 @@ export const useQuestions = () => {
     pending,
     error,
     searchQuery,
-    addQuestion, // <--- Pastikan diekspor agar bisa dipakai di ask.vue
+    addQuestion,
     subscribeRealtime,
     unsubscribeRealtime,
     fetchPublic,

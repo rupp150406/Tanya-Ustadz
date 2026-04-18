@@ -1,6 +1,7 @@
 <script setup>
-// 1. Import useQuestions dan helper Nuxt
+// 1. Import composables
 const { addQuestion, pending: isSubmitting } = useQuestions()
+const { fingerprint, getFingerprint } = useFingerprint()
 
 const category = ref('Fikih')
 const questionText = ref('')
@@ -23,17 +24,6 @@ const categories = [
   { id: 'Umum', icon: 'language', label: 'Umum', class: 'col-span-2 md:col-span-1' },
 ]
 
-// Fungsi Helper untuk Fingerprint
-const getFingerprint = () => {
-  if (process.server) return ''
-  let fp = localStorage.getItem('user_fingerprint')
-  if (!fp) {
-    fp = 'fp_' + Math.random().toString(36).substring(2, 15)
-    localStorage.setItem('user_fingerprint', fp)
-  }
-  return fp
-}
-
 // Fungsi memicu alert kustom
 const triggerAlert = (title, message, success = false) => {
   alertTitle.value = title
@@ -49,24 +39,35 @@ const closeAlert = () => {
   }
 }
 
-// 2. Update handleSubmit
+// 2. handleSubmit: panggil getFingerprint() sesaat sebelum kirim
+//    untuk memastikan nilai terbaru sudah siap (bukan nilai stale dari cache lama)
 const handleSubmit = async () => {
   if (!questionText.value.trim()) {
     return triggerAlert('Peringatan', 'Isi pertanyaan tidak boleh kosong.')
   }
-  
+
   try {
+    // Selalu resolve ulang fingerprint tepat sebelum submit
+    // getFingerprint() akan mengembalikan nilai cache jika sudah ada,
+    // atau generate baru jika belum — ini memastikan fingerprint.value
+    // dan nilai yang dikirim ke server selalu sinkron
+    const fp = await getFingerprint()
+
+    if (!fp) {
+      return triggerAlert('Peringatan', 'Tidak dapat mengidentifikasi perangkat. Coba muat ulang halaman.')
+    }
+
     await addQuestion({
-      question: questionText.value,
+      question: questionText.value.trim(),
       category: category.value,
-      fingerprint: getFingerprint()
+      fingerprint: fp,
     })
-    
+
     // Tampilkan alert sukses
     triggerAlert('Berhasil!', 'Pertanyaan Anda telah terkirim secara anonim.', true)
     questionText.value = ''
   } catch (err) {
-    const errorMsg = err.data?.message || 'Terjadi kesalahan saat mengirim pertanyaan.'
+    const errorMsg = err?.data?.message || err?.message || 'Terjadi kesalahan saat mengirim pertanyaan.'
     triggerAlert('Warning!', errorMsg, false)
   }
 }
@@ -74,7 +75,7 @@ const handleSubmit = async () => {
 
 <template>
   <div class="bg-background text-on-surface font-body antialiased min-h-screen">
-<div 
+    <div 
       class="alert-overlay" 
       :class="{ 'active': showAlert }"
       @click.self="closeAlert"
