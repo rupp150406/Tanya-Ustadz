@@ -11,6 +11,7 @@ const {
   setSearch,
   subscribeRealtime,
   unsubscribeRealtime,
+  getUserBadge,
 } = useQuestions()
 
 const { fingerprint, getFingerprint } = useFingerprint()
@@ -74,8 +75,6 @@ onActivated(async () => {
 onUnmounted(() => unsubscribeRealtime())
 
 // Utils
-const getTicketId = (id) => id?.slice(-4).toUpperCase() || '....'
-
 const formatDate = (dateString) => {
   if (!dateString) return 'Baru saja'
   const date = new Date(dateString)
@@ -156,7 +155,7 @@ const getStatusLabel = (status) => {
           <div class="flex justify-between items-start mb-4">
             <span :class="q.status === 'answered' ? 'text-primary bg-secondary-container/30' : 'text-amber-800 bg-amber-100'"
                   class="text-[10px] font-bold px-2 py-1 rounded">
-              Hamba Allah #{{ getTicketId(q.id) }}
+              {{ getUserBadge(q.fingerprint) }}
             </span>
             <div class="flex items-center gap-1.5 text-outline text-[11px]">
               <span>{{ formatDate(q.created_at) }}</span>

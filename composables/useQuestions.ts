@@ -137,6 +137,12 @@ export const useQuestions = () => {
     return Math.max(0, Math.ceil(30 - (now - created) / 86400000))
   }
 
+  function getUserBadge(fingerprintValue?: string): string {
+    if (!fingerprintValue) return 'Hamba Allah #....'
+    const firstFour = fingerprintValue.slice(0, 4).toUpperCase()
+    return `Hamba Allah #${firstFour}`
+  }
+
   let channel: any = null
 
   const subscribeRealtime = (role: string) => {
@@ -179,5 +185,6 @@ export const useQuestions = () => {
     removeFromList,
     updateInList,
     daysUntilDeletion,
+    getUserBadge,
   }
 }
