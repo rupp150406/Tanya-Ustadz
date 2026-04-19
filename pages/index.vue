@@ -98,6 +98,17 @@ const getStatusLabel = (status) => {
 
 <template>
   <main class="min-h-screen bg-surface font-body text-on-surface">
+
+        <header class="bg-surface/70 backdrop-blur-md sticky top-0 z-50 shadow-sm bg-gradient-to-b from-slate-100/10 to-transparent">
+      <div class="flex justify-between items-center w-full px-6 py-3 max-w-screen-2xl mx-auto">
+        <div class="flex items-center gap-4">
+          <NuxtLink to="/" class="text-2xl font-bold tracking-tighter text-emerald-800">
+            Tanya Ustadz
+          </NuxtLink>
+        </div>
+      </div>
+    </header>
+
     <div class="max-w-6xl mx-auto px-4 py-8">
       
       <div class="mb-8 max-w-2xl mx-auto">
@@ -252,4 +263,40 @@ body { margin: 0; background-color: #f9f9ff; }
 .font-body { font-family: 'Plus Jakarta Sans', sans-serif; }
 
 a { text-decoration: none; color: inherit; }
+
+/* Hidden Scrollbar Utility - Cross-browser compatibility */
+/* Webkit browsers (Chrome, Safari, Opera) */
+:deep(html::-webkit-scrollbar),
+:deep(body::-webkit-scrollbar),
+:deep(main::-webkit-scrollbar),
+:deep(.max-w-6xl::-webkit-scrollbar) {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Firefox */
+:deep(html),
+:deep(body),
+:deep(main),
+:deep(.max-w-6xl) {
+  scrollbar-width: none;
+}
+
+/* IE and Edge */
+:deep(html),
+:deep(body),
+:deep(main),
+:deep(.max-w-6xl) {
+  -ms-overflow-style: none;
+}
+
+/* Ensure scrolling functionality remains intact */
+:deep(html),
+:deep(body),
+:deep(main),
+:deep(.max-w-6xl) {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
 </style>
