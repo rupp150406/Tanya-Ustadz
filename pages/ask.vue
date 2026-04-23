@@ -13,6 +13,10 @@ const alertTitle = ref('Warning!')
 const alertMessage = ref('')
 const isSuccess = ref(false)
 
+// Lottie pre-loading state
+const lottieReady = ref(false)
+const currentLottieSrc = ref('')
+
 const charCount = computed(() => questionText.value.length)
 
 // List Kategori disesuaikan dengan VALID_CATEGORIES di server
@@ -24,11 +28,29 @@ const categories = [
   { id: 'Umum', icon: 'language', label: 'Umum', class: 'col-span-2 md:col-span-1' },
 ]
 
+// Lottie pre-loading function
+const preloadLottie = () => {
+  const successUrl = 'https://lottie.host/embed/19c599af-dfb9-40ea-b2ed-14d2ed7f9d5b/PlnHXxxyYt.lottie?loop=0'
+  const errorUrl = 'https://lottie.host/embed/90176d91-4978-4297-812d-178a24962b88/MDQJhvWqPS.lottie?loop=0'
+  
+  // Pre-load both animations by setting initial source
+  currentLottieSrc.value = successUrl
+  lottieReady.value = true
+}
+
 // Fungsi memicu alert kustom
 const triggerAlert = (title, message, success = false) => {
   alertTitle.value = title
   alertMessage.value = message
   isSuccess.value = success
+  
+  // Update Lottie source based on alert type
+  if (success) {
+    currentLottieSrc.value = 'https://lottie.host/embed/19c599af-dfb9-40ea-b2ed-14d2ed7f9d5b/PlnHXxxyYt.lottie?loop=0'
+  } else {
+    currentLottieSrc.value = 'https://lottie.host/embed/90176d91-4978-4297-812d-178a24962b88/MDQJhvWqPS.lottie?loop=0'
+  }
+  
   showAlert.value = true
 }
 
@@ -79,6 +101,11 @@ const handleSubmit = async () => {
     triggerAlert('Warning!', errorMsg, false)
   }
 }
+
+// Pre-load Lottie animations on component mount
+onMounted(() => {
+  preloadLottie()
+})
 </script>
 
 <template>
@@ -92,10 +119,8 @@ const handleSubmit = async () => {
         <div class="alert-header" :class="isSuccess ? 'bg-emerald-600' : 'bg-[#004d36]'">
           <div class="lottie-container">
             <iframe 
-              :key="showAlert"
-              :src="isSuccess 
-                ? 'https://lottie.host/embed/19c599af-dfb9-40ea-b2ed-14d2ed7f9d5b/PlnHXxxyYt.lottie?loop=0' 
-                : 'https://lottie.host/embed/90176d91-4978-4297-812d-178a24962b88/MDQJhvWqPS.lottie?loop=0'" 
+              v-show="lottieReady"
+              :src="currentLottieSrc"
               style="border: none; width: 100%; height: 100%; pointer-events: none;"
             ></iframe>
           </div>

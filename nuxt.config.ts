@@ -19,6 +19,10 @@ export default defineNuxtConfig({
     redirect: false, // manual redirect via middleware
   },
 
+  router: {
+    middleware: ['gate-guard'] // Pastikan nama middleware sesuai
+  },
+
   routeRules: {
     '/lottie-proxy/**': { proxy: 'https://plugins.lottiefiles.com/**' },
   },
@@ -35,6 +39,7 @@ export default defineNuxtConfig({
     public: {
       supabaseUrl: process.env.SUPABASE_URL,
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+      adminGatePassword: process.env.ADMIN_GATE_PASSWORD
     },
   },
   

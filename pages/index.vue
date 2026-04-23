@@ -17,28 +17,40 @@ const {
 const { fingerprint, getFingerprint } = useFingerprint()
 
 const activeTab = ref('all')
+const searchInput = ref('')
 
-// Filter pertanyaan berdasarkan tab DAN privasi (Private Pending System)
+// Filter pertanyaan berdasarkan tab, privasi, DAN search query (Private Pending System + Real-time Search)
 const filteredQuestions = computed(() => {
   if (!questions.value) return []
 
   let list = questions.value.filter(q => {
+    // Privacy filter: Private Pending System
     if (q.status === 'answered' || q.status === 'verified') return true
-
     if (q.status === 'pending') {
       return !!fingerprint.value && q.fingerprint === fingerprint.value
     }
-
     return false
   })
 
-  if (activeTab.value === 'answered') return list.filter(q => q.status === 'answered')
-  if (activeTab.value === 'unanswered') return list.filter(q => q.status !== 'answered')
+  // Tab filter
+  if (activeTab.value === 'answered') list = list.filter(q => q.status === 'answered')
+  if (activeTab.value === 'unanswered') list = list.filter(q => q.status !== 'answered')
+
+  // Search filter (case-insensitive, searches in question and category)
+  if (searchInput.value.trim()) {
+    const searchLower = searchInput.value.toLowerCase().trim()
+    list = list.filter(q => 
+      q.question.toLowerCase().includes(searchLower) ||
+      (q.category && q.category.toLowerCase().includes(searchLower))
+    )
+  }
 
   return list
 })
 
 const handleSearch = (e) => {
+  searchInput.value = e.target.value
+  // Optional: Also update global searchQuery for other components
   setSearch(e.target.value, fingerprint.value)
 }
 
@@ -117,8 +129,7 @@ const getStatusLabel = (status) => {
             <span class="material-symbols-outlined text-outline group-focus-within:text-primary transition-colors">search</span>
           </div>
           <input
-            :value="searchQuery"
-            @input="handleSearch"
+            v-model="searchInput"
             type="text"
             class="w-full h-14 pl-12 pr-4 rounded-full border-none bg-surface-container-high text-on-surface focus:ring-2 focus:ring-primary/20 placeholder:text-outline/60 transition-all shadow-sm"
             placeholder="Cari jawaban atau topik hukum..."
