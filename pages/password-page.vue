@@ -35,8 +35,6 @@ const validatePassword = async () => {
     // Simulate processing delay for better UX
     await new Promise(resolve => setTimeout(resolve, 500))
 
-    console.log('Input:', password.value)
-    console.log('Config Key:', config.public.adminGatePassword)
     // Check against environment variable
     if (password.value === config.public.adminGatePassword) {
       console.log('✅ Password validation SUCCESS')
