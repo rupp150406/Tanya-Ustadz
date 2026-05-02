@@ -1,4 +1,5 @@
 <script setup>
+import UiThemeToggle from '~/components/ui/ThemeToggle.vue'
 const { addQuestion, fetchPublic, pending: isSubmitting } = useQuestions()
 const { fingerprint, getFingerprint } = useFingerprint()
 

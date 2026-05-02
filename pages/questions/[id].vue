@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted } from 'vue'
 import { useQuestions } from '~/composables/useQuestions'
+import UiThemeToggle from '~/components/ui/ThemeToggle.vue'
 
 // ─── Theme ────────────────────────────────────────────────────
 const { initTheme } = useTheme()
@@ -46,6 +47,12 @@ const formatDateShort = (ds) => {
 const upvoted = ref(false)
 const localUpvotes = computed(() => (q.value?.upvotes ?? 0) + (upvoted.value ? 1 : 0))
 function toggleUpvote() { upvoted.value = !upvoted.value }
+
+// ─── Avatar Error Handler ───────────────────────────────────
+function handleAvatarError(event) {
+  const img = event.target
+  img.style.display = 'none'
+}
 </script>
 
 <template>
@@ -268,7 +275,15 @@ function toggleUpvote() { upvoted.value = !upvoted.value }
               <!-- Ustadz Header -->
               <div class="flex flex-col sm:flex-row sm:items-center gap-4 mb-8 pb-7 border-b border-outline-variant/10 dark:border-zinc-800">
                 <div class="w-16 h-16 rounded-2xl shadow-sm shrink-0 overflow-hidden bg-primary/10 flex items-center justify-center">
-                  <span class="text-white font-bold text-2xl">
+                  <!-- Display actual avatar if available, fallback to initial -->
+                  <img 
+                    v-if="q.answered_by_profile?.avatar_url && q.answered_by_profile?.avatar_url.length > 15"
+                    :src="q.answered_by_profile.avatar_url"
+                    :alt="`Avatar ${q.answered_by_profile.full_name}`"
+                    class="w-full h-full object-cover"
+                    @error="handleAvatarError"
+                  />
+                  <span v-else class="text-white font-bold text-2xl">
                     {{ q.answered_by_profile?.full_name?.charAt(0)?.toUpperCase() ?? 'U' }}
                   </span>
                 </div>

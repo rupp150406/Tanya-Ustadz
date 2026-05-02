@@ -10,6 +10,7 @@ definePageMeta({
 })
 
 import type { Question, QuestionStatus } from '~/composables/useQuestions'
+import UiThemeToggle from '~/components/ui/ThemeToggle.vue'
 
 interface Profile {
   id: string
@@ -279,6 +280,11 @@ async function retryLoad(): Promise<void> {
   _initialLoadDone = false
   isLoading.value = true
   if (user.value) await runFullLoad(user.value)
+}
+
+function handleAvatarError(event) {
+  const img = event.target
+  img.style.display = 'none'
 }
 
 async function handleUpdateProfile(): Promise<void> {
@@ -605,8 +611,18 @@ function cancelEditing(): void {
               <!-- ANSWERED -->
               <template v-if="q.status === 'answered'">
                 <div class="flex items-center gap-3 p-4 rounded-2xl bg-surface-container-low dark:bg-zinc-800 mb-4">
-                  <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold text-xs ring-2 ring-white dark:ring-zinc-900">
-                    {{ q.answered_by_profile?.full_name?.charAt(0)?.toUpperCase() ?? 'U' }}
+                  <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold text-xs ring-2 ring-white dark:ring-zinc-900 overflow-hidden">
+                    <!-- Display actual avatar if available, fallback to initial -->
+                    <img 
+                      v-if="q.answered_by_profile?.avatar_url && q.answered_by_profile?.avatar_url.length > 15"
+                      :src="q.answered_by_profile.avatar_url"
+                      :alt="`Avatar ${q.answered_by_profile.full_name}`"
+                      class="w-full h-full object-cover"
+                      @error="handleAvatarError"
+                    />
+                    <span v-else>
+                      {{ q.answered_by_profile?.full_name?.charAt(0)?.toUpperCase() ?? 'U' }}
+                    </span>
                   </div>
                   <div>
                     <p class="text-xs font-bold text-on-surface dark:text-zinc-200">Ustadz {{ q.answered_by_profile?.full_name ?? 'Ustadz Tidak Diketahui' }}</p>
