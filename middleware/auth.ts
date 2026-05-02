@@ -6,25 +6,20 @@
 //       If no session → redirect to /login-gate
 // ============================================================
 
-import { defineNuxtRouteMiddleware, navigateTo } from "nuxt/app";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NUXT_PUBLIC_SUPABASE_URL!,
-  process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { defineNuxtRouteMiddleware, navigateTo } from "#app";
 
 export default defineNuxtRouteMiddleware(async (to) => {
-  const guardedPaths = ["/select-role", "/dashboard"];
+  // Gunakan composable bawaan, jangan inisialisasi ulang
+  const client = useSupabaseClient();
+  const user = useSupabaseUser();
+
+  const guardedPaths = ["/select-role", "/dashboard", "/admin"];
   const isGuarded = guardedPaths.some((path) => to.path.startsWith(path));
 
   if (!isGuarded) return;
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) {
+  // Cek user session dari composable yang sudah ada
+  if (!user.value) {
     return navigateTo("/login-gate");
   }
 });

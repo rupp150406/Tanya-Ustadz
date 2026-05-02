@@ -19,9 +19,6 @@ export default defineNuxtConfig({
     redirect: false, // manual redirect via middleware
   },
 
-  router: {
-    middleware: ['gate-guard'] // Pastikan nama middleware sesuai
-  },
 
   routeRules: {
     '/lottie-proxy/**': { proxy: 'https://plugins.lottiefiles.com/**' },
@@ -47,7 +44,7 @@ export default defineNuxtConfig({
   // --- SEO / HEAD ---
   app: {
     head: {
-      titleTemplate: "%s | Tanya Ustadz V3",
+      titleTemplate: "%s",
       title: "Tanya Ustadz",
       meta: [
         { charset: "utf-8" },

@@ -4,6 +4,7 @@ export interface Question {
   id: string;
   ticket_id: string;
   created_at: string;
+  answered_at: string | null;
   question: string;
   category: string | null;
   status: QuestionStatus;
@@ -11,6 +12,11 @@ export interface Question {
   is_pinned: boolean;
   upvotes: number;
   fingerprint: string | null;
+  answered_by: string | null;
+  answered_by_profile?: {
+    full_name: string | null;
+    avatar_url: string | null;
+  } | null;
 }
 
 export const useQuestions = () => {
@@ -83,18 +89,35 @@ export const useQuestions = () => {
   // =============================
   // ADMIN
   // =============================
-  function fetchForAdmin() {
-    return fetchAPI('/api/admin/questions', {
-      search: searchQuery.value
+  // Pass an explicit status list so the API route is never allowed to
+  // silently default to a subset. Admin must see pending + verified + answered.
+const fetchForAdmin = async () => {
+  pending.value = true
+  try {
+    // WAJIB panggil endpoint internal kita, bukan Supabase SDK
+    const data = await $fetch('/api/admin/questions', {
+      params: { 
+        search: searchQuery.value,
+        statuses: 'pending,verified,answered,rejected' 
+      }
     })
+    questions.value = data
+  } catch (err: any) {
+    error.value = err.message
+  } finally {
+    pending.value = false
   }
+}
 
   // =============================
   // USTADZ
   // =============================
+  // Ustadz sees verified (to answer) + answered (their history).
+  // Pending rows are not their concern and must not appear.
   function fetchForUstadz() {
     return fetchAPI('/api/ustadz/questions', {
-      search: searchQuery.value
+      search: searchQuery.value,
+      statuses: 'verified,answered'
     })
   }
 
@@ -145,17 +168,24 @@ export const useQuestions = () => {
 
   let channel: any = null
 
-  const subscribeRealtime = (role: string) => {
+  const subscribeRealtime = (role: 'admin' | 'ustadz' | 'jemaah') => {
     const supabase = useSupabaseClient()
     channel = supabase
       .channel('questions-realtime')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'questions' },
-        (payload) => {
-          console.log('Realtime change:', payload)
-          const { fingerprint } = useFingerprint()
-          fetchPublic('all', fingerprint.value)
+        (_payload) => {
+          // Re-fetch via the endpoint that matches the subscriber's role so
+          // realtime events never overwrite privileged data with public data.
+          if (role === 'admin') {
+            fetchForAdmin()
+          } else if (role === 'ustadz') {
+            fetchForUstadz()
+          } else {
+            const { fingerprint } = useFingerprint()
+            fetchPublic('all', fingerprint.value)
+          }
         }
       )
       .subscribe()

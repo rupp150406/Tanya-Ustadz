@@ -93,12 +93,13 @@ export default defineEventHandler(async (event) => {
   // --- SANITIZE ANSWER ---
   const safeAnswer = sanitizeText(rawAnswer);
 
-  // --- UPDATE: answer + status, nothing else ---
+  // --- UPDATE: answer + status + answered_by, nothing else ---
   const { error: updateError } = await supabase
     .from("questions")
     .update({
       answer: safeAnswer,
       status: "answered",
+      answered_by: user.id  // Store which ustadz answered
     })
     .eq("id", questionId)
     .eq("status", "verified"); // extra guard: only update if still verified

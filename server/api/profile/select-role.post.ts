@@ -3,14 +3,14 @@
 // FILE: server/api/profile/select-role.post.ts
 // DESC: Set role for authenticated Google OAuth user
 //       - Only allowed if current role IS NULL (first-time)
-//       - Accepts: 'admin' or 'ustadz'
+//       - Accepts: 'admin_it' or 'ustadz'
 // ============================================================
 
 import { defineEventHandler, readBody, createError } from "h3";
 import { serverSupabaseClient } from "#supabase/server";
 
-type ValidRole = "admin" | "ustadz";
-const VALID_ROLES: ValidRole[] = ["admin", "ustadz"];
+type ValidRole = "admin_it" | "ustadz";
+const VALID_ROLES: ValidRole[] = ["admin_it", "ustadz"];
 
 export default defineEventHandler(async (event) => {
   const supabase = await serverSupabaseClient(event);
@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
   if (!VALID_ROLES.includes(role as ValidRole)) {
     throw createError({
       statusCode: 400,
-      message: "Role tidak valid. Pilih 'admin' atau 'ustadz'.",
+      message: "Role tidak valid. Pilih 'admin_it' atau 'ustadz'.",
     });
   }
 

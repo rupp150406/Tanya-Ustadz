@@ -36,5 +36,5 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   // Hydrate composable state so downstream pages don't re-fetch
-  adminAuth.setRole(profile.role as "admin" | "ustadz");
+  adminAuth.setRole(profile.role as "admin_it" | "ustadz");
 });

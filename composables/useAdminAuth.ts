@@ -1,17 +1,14 @@
 // ============================================================
 // PROJECT: TANYA USTADZ V3
 // FILE: composables/useAdminAuth.ts
-// DESC: State management for admin/ustadz session & role
-//       - Reactive role + profile state (shared across dashboard)
-//       - Role persisted in memory (not localStorage — SSR safe)
-//       - Logout clears all state and cookies
 // ============================================================
 
 import type { User } from "@supabase/supabase-js";
 
-type Role = "admin" | "ustadz" | null;
+// Definisikan type di luar agar bisa dipakai di mana saja
+export type Role = "admin_it" | "ustadz" | null;
 
-interface Profile {
+export interface Profile {
   id: string;
   full_name: string | null;
   email: string | null;
@@ -19,37 +16,32 @@ interface Profile {
   role: Role;
 }
 
-// Shared reactive state (singleton pattern via useState)
-const _role    = useState<Role>("admin_role", () => null);
-const _profile = useState<Profile | null>("admin_profile", () => null);
-const _user    = useState<User | null>("admin_user", () => null);
-
 export function useAdminAuth() {
   const supabase = useSupabaseClient();
+
+  // PINDAHKAN KE SINI: useState harus di dalam fungsi ini
+  // Nuxt akan otomatis menjaga state ini tetap "singleton" berdasarkan key-nya ("admin_role", dsb)
+  const _role    = useState<Role>("admin_role", () => null);
+  const _profile = useState<Profile | null>("admin_profile", () => null);
+  const _user    = useState<User | null>("admin_user", () => null);
 
   const role    = computed(() => _role.value);
   const profile = computed(() => _profile.value);
   const user    = computed(() => _user.value);
-  const isAdmin  = computed(() => _role.value === "admin");
+  const isAdmin  = computed(() => _role.value === "admin_it");
   const isUstadz = computed(() => _role.value === "ustadz");
 
-  function setRole(newRole: "admin" | "ustadz") {
+  function setRole(newRole: Role) {
     _role.value = newRole;
   }
 
-  /**
-   * Fetch full profile + role from Supabase.
-   * Call this once after login or on dashboard mount.
-   */
   async function fetchProfile(): Promise<void> {
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
 
     if (!authUser) {
-      _user.value    = null;
+      _user.value = null;
       _profile.value = null;
-      _role.value    = null;
+      _role.value = null;
       return;
     }
 
@@ -66,15 +58,12 @@ export function useAdminAuth() {
       return;
     }
 
+    // Pastikan casting type sesuai dengan DB
     _profile.value = data as Profile;
     _role.value    = data.role as Role;
   }
 
-  /**
-   * Submit role selection (first-time only).
-   * Calls server API → updates profiles.role in DB.
-   */
-  async function selectRole(selectedRole: "admin" | "ustadz"): Promise<void> {
+  async function selectRole(selectedRole: Role): Promise<void> {
     const { error } = await useFetch("/api/profile/select-role", {
       method: "POST",
       body: { role: selectedRole },
@@ -90,20 +79,16 @@ export function useAdminAuth() {
     }
   }
 
-  /**
-   * Full logout: clear Supabase session + gate cookie + local state.
-   */
   async function logout(): Promise<void> {
     await supabase.auth.signOut();
 
-    // Clear gate cookie (set to expired)
+    // useCookie juga harus dipanggil di dalam fungsi context
     const gateCookie = useCookie("gate_access", {
       maxAge: -1,
       path: "/",
     });
     gateCookie.value = null;
 
-    // Clear shared state
     _user.value    = null;
     _profile.value = null;
     _role.value    = null;

@@ -25,7 +25,13 @@ export default defineEventHandler(async (event) => {
     config.supabaseServiceRoleKey
   )
 
-  let db = supabase.from('questions').select('*');
+  let db = supabase.from('questions').select(`
+    *,
+    answered_by_profile:profiles!questions_answered_by_fkey(
+      full_name,
+      avatar_url
+    )
+  `);
 
   // =============================
   // FILTER TAB

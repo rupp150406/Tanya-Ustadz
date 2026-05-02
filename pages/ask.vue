@@ -1,25 +1,28 @@
 <script setup>
-// 1. Import composables
 const { addQuestion, fetchPublic, pending: isSubmitting } = useQuestions()
 const { fingerprint, getFingerprint } = useFingerprint()
+
+// ─── Theme ────────────────────────────────────────────────────
+const { initTheme } = useTheme()
+onMounted(() => {
+  initTheme()
+  preloadLottie()
+})
 
 const category = ref('Fikih')
 const questionText = ref('')
 const maxChars = 500
 
-// State untuk Custom Alert
 const showAlert = ref(false)
 const alertTitle = ref('Warning!')
 const alertMessage = ref('')
 const isSuccess = ref(false)
 
-// Lottie pre-loading state
 const lottieReady = ref(false)
 const currentLottieSrc = ref('')
 
 const charCount = computed(() => questionText.value.length)
 
-// List Kategori disesuaikan dengan VALID_CATEGORIES di server
 const categories = [
   { id: 'Fikih', icon: 'balance', label: 'Fikih', class: '' },
   { id: 'Akhlak & Adab', icon: 'favorite', label: 'Akhlak', class: '' },
@@ -28,72 +31,44 @@ const categories = [
   { id: 'Umum', icon: 'language', label: 'Umum', class: 'col-span-2 md:col-span-1' },
 ]
 
-// Lottie pre-loading function
 const preloadLottie = () => {
-  const successUrl = 'https://lottie.host/embed/19c599af-dfb9-40ea-b2ed-14d2ed7f9d5b/PlnHXxxyYt.lottie?loop=0'
-  const errorUrl = 'https://lottie.host/embed/90176d91-4978-4297-812d-178a24962b88/MDQJhvWqPS.lottie?loop=0'
-  
-  // Pre-load both animations by setting initial source
-  currentLottieSrc.value = successUrl
+  currentLottieSrc.value = 'https://lottie.host/embed/19c599af-dfb9-40ea-b2ed-14d2ed7f9d5b/PlnHXxxyYt.lottie?loop=0'
   lottieReady.value = true
 }
 
-// Fungsi memicu alert kustom
 const triggerAlert = (title, message, success = false) => {
   alertTitle.value = title
   alertMessage.value = message
   isSuccess.value = success
-  
-  // Update Lottie source based on alert type
-  if (success) {
-    currentLottieSrc.value = 'https://lottie.host/embed/19c599af-dfb9-40ea-b2ed-14d2ed7f9d5b/PlnHXxxyYt.lottie?loop=0'
-  } else {
-    currentLottieSrc.value = 'https://lottie.host/embed/90176d91-4978-4297-812d-178a24962b88/MDQJhvWqPS.lottie?loop=0'
-  }
-  
+  currentLottieSrc.value = success
+    ? 'https://lottie.host/embed/19c599af-dfb9-40ea-b2ed-14d2ed7f9d5b/PlnHXxxyYt.lottie?loop=0'
+    : 'https://lottie.host/embed/90176d91-4978-4297-812d-178a24962b88/MDQJhvWqPS.lottie?loop=0'
   showAlert.value = true
 }
 
-// FIX: closeAlert sekarang melakukan pre-fetch sebelum navigasi.
-//
-// Masalah awal: navigateTo('/') di SPA tidak me-mount ulang index.vue,
-// sehingga onMounted di index.vue tidak jalan lagi dan data lama masih tampil.
-//
-// Solusi: Sebelum berpindah halaman, panggil fetchPublic('all', fp) untuk
-// memperbarui shared state `questions` (via useState). Karena state ini
-// di-share di seluruh aplikasi, begitu index.vue dirender, computed
-// filteredQuestions langsung mendapatkan data terbaru — tanpa hard reload.
 const closeAlert = async () => {
   showAlert.value = false
   if (isSuccess.value) {
-    // Pastikan fingerprint sudah tersedia (bisa dari cache)
     const fp = fingerprint.value || await getFingerprint()
-    // Pre-populate shared state sebelum berpindah halaman
     await fetchPublic('all', fp)
-    // Baru navigasi — index.vue langsung tampil dengan data fresh
     await navigateTo('/')
   }
 }
 
-// 2. handleSubmit: panggil getFingerprint() sesaat sebelum kirim
 const handleSubmit = async () => {
   if (!questionText.value.trim()) {
     return triggerAlert('Peringatan', 'Isi pertanyaan tidak boleh kosong.')
   }
-
   try {
     const fp = await getFingerprint()
-
     if (!fp) {
       return triggerAlert('Peringatan', 'Tidak dapat mengidentifikasi perangkat. Coba muat ulang halaman.')
     }
-
     await addQuestion({
       question: questionText.value.trim(),
       category: category.value,
       fingerprint: fp,
     })
-
     triggerAlert('Berhasil!', 'Pertanyaan Anda telah terkirim secara anonim.', true)
     questionText.value = ''
   } catch (err) {
@@ -101,36 +76,32 @@ const handleSubmit = async () => {
     triggerAlert('Warning!', errorMsg, false)
   }
 }
-
-// Pre-load Lottie animations on component mount
-onMounted(() => {
-  preloadLottie()
-})
 </script>
 
 <template>
-  <div class="bg-background text-on-surface font-body antialiased min-h-screen">
-    <div 
-      class="alert-overlay" 
+  <div class="bg-background dark:bg-zinc-950 text-on-surface dark:text-zinc-100 font-body antialiased min-h-screen transition-colors duration-300">
+    <!-- Custom Alert Overlay -->
+    <div
+      class="alert-overlay"
       :class="{ 'active': showAlert }"
       @click.self="closeAlert"
     >
-      <div class="alert-card shadow-2xl">
+      <div class="alert-card shadow-2xl dark:bg-zinc-900">
         <div class="alert-header" :class="isSuccess ? 'bg-emerald-600' : 'bg-[#004d36]'">
           <div class="lottie-container">
-            <iframe 
+            <iframe
               v-show="lottieReady"
               :src="currentLottieSrc"
               style="border: none; width: 100%; height: 100%; pointer-events: none;"
             ></iframe>
           </div>
         </div>
-        <div class="alert-content">
-          <h2 class="alert-title">{{ alertTitle }}</h2>
-          <p class="alert-message">{{ alertMessage }}</p>
-          <button 
-            @click="closeAlert" 
-            class="alert-button text-white transition-transform active:scale-95" 
+        <div class="alert-content dark:bg-zinc-900">
+          <h2 class="alert-title dark:text-zinc-100">{{ alertTitle }}</h2>
+          <p class="alert-message dark:text-zinc-400">{{ alertMessage }}</p>
+          <button
+            @click="closeAlert"
+            class="alert-button text-white transition-transform active:scale-95"
             :class="isSuccess ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-[#004d36] hover:bg-[#003626]'"
           >
             {{ isSuccess ? 'Kembali ke Home' : 'Tutup' }}
@@ -139,17 +110,19 @@ onMounted(() => {
       </div>
     </div>
 
-    <header class="bg-surface/70 backdrop-blur-md sticky top-0 z-50 shadow-sm bg-gradient-to-b from-slate-100/10 to-transparent">
+    <header class="bg-surface/70 dark:bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 shadow-sm border-b border-transparent dark:border-zinc-800/50">
       <div class="flex justify-between items-center w-full px-6 py-3 max-w-screen-2xl mx-auto">
         <div class="flex items-center gap-4">
-          <NuxtLink to="/" class="text-2xl font-bold tracking-tighter text-emerald-800">
+          <NuxtLink to="/" class="text-2xl font-bold tracking-tighter text-emerald-800 dark:text-emerald-400">
             Tanya Ustadz
           </NuxtLink>
         </div>
+        <!-- Theme Toggle -->
+        <UiThemeToggle />
       </div>
     </header>
 
-    <main class="flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden text-on-surface">
+    <main class="flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden text-on-surface dark:text-zinc-100">
       <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/5 blur-[120px]"></div>
       <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-secondary/5 blur-[120px]"></div>
 
@@ -158,14 +131,14 @@ onMounted(() => {
           <h1 class="font-headline font-extrabold text-4xl md:text-5xl tracking-tight">
             Sampaikan <span class="text-primary">Pertanyaanmu</span>
           </h1>
-          <p class="text-on-surface-variant text-lg max-w-md mx-auto leading-relaxed">
+          <p class="text-on-surface-variant dark:text-zinc-400 text-lg max-w-md mx-auto leading-relaxed">
             Ajukan pertanyaan seputar hukum Islam kepada para asatidzah yang kompeten dengan penuh ketenangan.
           </p>
         </div>
 
-        <div class="bg-surface-container-lowest rounded-[2rem] shadow-[0px_12px_32px_rgba(20,28,43,0.06)] overflow-hidden p-8 md:p-12">
-          <div class="mb-8 flex items-center gap-3 p-4 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant">
-            <span class="material-symbols-outlined text-tertiary">info</span>
+        <div class="bg-surface-container-lowest dark:bg-zinc-900 rounded-[2rem] shadow-[0px_12px_32px_rgba(20,28,43,0.06)] dark:shadow-[0px_12px_32px_rgba(0,0,0,0.4)] overflow-hidden p-8 md:p-12 border border-transparent dark:border-zinc-800">
+          <div class="mb-8 flex items-center gap-3 p-4 rounded-xl bg-tertiary-fixed dark:bg-amber-900/20 text-on-tertiary-fixed-variant dark:text-amber-300">
+            <span class="material-symbols-outlined text-tertiary dark:text-amber-400">info</span>
             <p class="text-sm font-medium">Batas bertanya: 5 pertanyaan setiap 5 menit untuk menjaga kualitas layanan.</p>
           </div>
 
@@ -176,15 +149,15 @@ onMounted(() => {
               </label>
               <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <label v-for="cat in categories" :key="cat.id" :class="['cursor-pointer group', cat.class]">
-                  <input 
-                    type="radio" 
-                    name="category" 
-                    :value="cat.id" 
-                    v-model="category" 
+                  <input
+                    type="radio"
+                    name="category"
+                    :value="cat.id"
+                    v-model="category"
                     class="sr-only peer"
                     :disabled="isSubmitting"
                   />
-                  <div class="px-3 py-4 rounded-2xl bg-surface-container-low text-center transition-all duration-200 peer-checked:bg-primary peer-checked:text-on-primary hover:bg-surface-container-high group-active:scale-95 flex flex-col items-center justify-center peer-disabled:opacity-50">
+                  <div class="px-3 py-4 rounded-2xl bg-surface-container-low dark:bg-zinc-800 text-center transition-all duration-200 peer-checked:bg-primary peer-checked:text-on-primary hover:bg-surface-container-high dark:hover:bg-zinc-700 group-active:scale-95 flex flex-col items-center justify-center peer-disabled:opacity-50">
                     <span class="material-symbols-outlined block mb-1">{{ cat.icon }}</span>
                     <span class="text-xs font-bold">{{ cat.label }}</span>
                   </div>
@@ -197,21 +170,21 @@ onMounted(() => {
                 Isi Pertanyaan
               </label>
               <div class="relative">
-                <textarea 
+                <textarea
                   v-model="questionText"
                   :maxlength="maxChars"
                   :disabled="isSubmitting"
                   rows="4"
-                  class="w-full bg-surface-container-low border-none rounded-3xl p-6 focus:ring-2 focus:ring-primary/20 text-on-surface placeholder:text-outline/60 resize-none disabled:opacity-50 transition-all"
+                  class="w-full bg-surface-container-low dark:bg-zinc-800 border-none rounded-3xl p-6 focus:ring-2 focus:ring-primary/20 text-on-surface dark:text-zinc-100 placeholder:text-outline/60 dark:placeholder:text-zinc-500 resize-none disabled:opacity-50 transition-all"
                   placeholder="Tuliskan pertanyaan Anda..."
                 ></textarea>
-                <div class="absolute bottom-4 right-6 text-xs font-medium text-outline">
+                <div class="absolute bottom-4 right-6 text-xs font-medium text-outline dark:text-zinc-500">
                   <span>{{ charCount }}</span>/{{ maxChars }}
                 </div>
               </div>
             </div>
 
-            <button 
+            <button
               type="submit"
               :disabled="isSubmitting"
               class="w-full py-4 px-8 rounded-full bg-gradient-to-br from-primary to-primary-container text-white font-headline font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-70"
@@ -222,13 +195,13 @@ onMounted(() => {
             </button>
           </form>
 
-          <div class="mt-12 pt-8 border-t border-outline-variant/15 text-center">
+          <div class="mt-12 pt-8 border-t border-outline-variant/15 dark:border-zinc-700 text-center">
             <div class="flex flex-col items-center gap-2">
-              <div class="w-12 h-12 rounded-full bg-secondary-container flex items-center justify-center mb-2">
-                <span class="material-symbols-outlined text-on-secondary-container">verified_user</span>
+              <div class="w-12 h-12 rounded-full bg-secondary-container dark:bg-primary/10 flex items-center justify-center mb-2">
+                <span class="material-symbols-outlined text-on-secondary-container dark:text-emerald-400">verified_user</span>
               </div>
               <h3 class="font-headline font-bold">Apa yang terjadi setelah ini?</h3>
-              <p class="text-sm text-on-surface-variant max-w-sm">
+              <p class="text-sm text-on-surface-variant dark:text-zinc-400 max-w-sm">
                 Pertanyaan Anda akan ditinjau oleh tim admin kami sebelum dijawab oleh Ustadz.
               </p>
             </div>
@@ -244,13 +217,10 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Custom Alert Styles (Integrasi dari alert.html) */
 .alert-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(4px);
   display: flex;
@@ -261,11 +231,7 @@ onMounted(() => {
   visibility: hidden;
   transition: all 0.3s ease;
 }
-
-.alert-overlay.active {
-  opacity: 1;
-  visibility: visible;
-}
+.alert-overlay.active { opacity: 1; visibility: visible; }
 
 .alert-card {
   background: white;
@@ -276,10 +242,7 @@ onMounted(() => {
   transform: scale(0.9);
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-
-.alert-overlay.active .alert-card {
-  transform: scale(1);
-}
+.alert-overlay.active .alert-card { transform: scale(1); }
 
 .alert-header {
   height: 140px;
@@ -288,26 +251,9 @@ onMounted(() => {
   justify-content: center;
   position: relative;
 }
-
-.alert-content {
-  padding: 32px 24px;
-  text-align: center;
-}
-
-.alert-title {
-  font-size: 24px;
-  font-weight: 800;
-  color: #1f2937;
-  margin-bottom: 8px;
-}
-
-.alert-message {
-  font-size: 16px;
-  color: #6b7280;
-  line-height: 1.5;
-  margin-bottom: 24px;
-}
-
+.alert-content { padding: 32px 24px; text-align: center; }
+.alert-title { font-size: 24px; font-weight: 800; color: #1f2937; margin-bottom: 8px; }
+.alert-message { font-size: 16px; color: #6b7280; line-height: 1.5; margin-bottom: 24px; }
 .alert-button {
   color: white;
   font-weight: 700;
@@ -319,18 +265,7 @@ onMounted(() => {
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
-
-.alert-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 105, 72, 0.3);
-}
-
-.lottie-container {
-  width: 100px;
-  height: 100px;
-}
-
-.material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-}
+.alert-button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,105,72,0.3); }
+.lottie-container { width: 100px; height: 100px; }
+.material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
 </style>
