@@ -183,7 +183,7 @@ async function handleShare() {
                 'bg-primary':   q.status === 'answered',
               }">
             </div>
-            <h2 class="text-[1.5rem] sm:text-3xl font-extrabold font-headline text-on-surface dark:text-zinc-100 leading-tight mb-5">
+            <h2 class="text-[1.5rem] sm:text-3xl font-extrabold font-headline text-on-surface dark:text-zinc-100 leading-tight mb-5 whitespace-pre-line">
               {{ q.question }}
             </h2>
           </div>
