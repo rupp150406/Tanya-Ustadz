@@ -91,7 +91,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // --- SANITIZE ANSWER ---
-  const safeAnswer = sanitizeText(rawAnswer);
+  const safeAnswer = rawAnswer;
 
   // --- UPDATE: answer + status + answered_by, nothing else ---
   const { error: updateError } = await supabase

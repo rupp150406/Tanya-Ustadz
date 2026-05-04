@@ -1,0 +1,547 @@
+===========================================================
+TANYA USTADZ V3 - UPVOTE SYSTEM COMPILATION
+===========================================================
+
+This file contains the complete source code for the upvote system:
+1. composables/useUpvotes.ts
+2. components/ui/UpvoteButton.vue  
+3. server/api/questions/vote.post.ts
+
+Generated on: 2026-05-03
+===========================================================
+
+===========================================================
+FILE 1: composables/useUpvotes.ts
+===========================================================
+
+// ============================================================
+// PROJECT: TANYA USTADZ V3
+// FILE: composables/useUpvote.ts
+// DESC: Manages upvote state per question.
+//       - Optimistic UI (immediate count change, rollback on error)
+//       - Voted status always synced atomically: hasVoted + localStorage
+//         updated together via syncHasVoted() — icon can never be "left behind"
+//       - Handles 'force_retracted' from the 23505 fallback DELETE path
+//       - Supabase Realtime: listens for UPDATE on questions row so
+//         upvote_count stays live when other users vote
+//
+// STATE SYNC CONTRACT:
+//   Every terminal branch of toggleUpvote() must call syncHasVoted()
+//   exactly once. This writes hasVoted.value AND localStorage atomically,
+//   so they are always consistent regardless of which code path was taken.
+//
+// ACTION MAP (from vote.post.ts):
+//   'voted'           → INSERT ok        → hasVoted=true,  count stays +1
+//   'retracted'       → DELETE ok        → hasVoted=false, count stays -1
+//   'force_retracted' → 23505 → DELETE   → hasVoted=false, count rollback to prev-1
+//                       (server found a stale row we didn't know about)
+//
+// DB CONTRACT (question_votes):
+//   - UNIQUE (question_id, fingerprint)
+//   - TRIGGER trg_sync_upvotes AFTER INSERT OR DELETE
+//     → sync_upvote_count() → updates questions.upvote_count
+//     → we NEVER manually touch upvote_count here
+// ============================================================
+
+import type { RealtimeChannel } from '@supabase/supabase-js'
+
+const VOTED_KEY = 'tanya_ustadz_voted' // localStorage → JSON array of question IDs
+
+// ── localStorage helpers ──────────────────────────────────────
+
+function loadVotedSet(): Set<string> {
+  if (typeof window === 'undefined') return new Set()
+  try {
+    const raw = localStorage.getItem(VOTED_KEY)
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+function saveVotedSet(set: Set<string>): void {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(VOTED_KEY, JSON.stringify([...set]))
+}
+
+// ── Composable ────────────────────────────────────────────────
+
+export function useUpvote(questionId: string, initialCount: number) {
+  // Auto-imported by Nuxt — no explicit import needed
+  const { getFingerprint }  = useFingerprint()
+  const supabase            = useSupabaseClient()
+
+  const count             = ref(initialCount)
+  const hasVoted          = ref(false)
+  const isPending         = ref(false)
+  const isRealtimeSyncing = ref(false)
+
+  let channel: RealtimeChannel | null = null
+
+  // ── Atomic state sync helper ──────────────────────────────
+  // ALWAYS use this instead of setting hasVoted.value directly.
+  // Keeps reactive state and localStorage in lockstep.
+  function syncHasVoted(value: boolean): void {
+    hasVoted.value = value
+    const voted = loadVotedSet()
+    value ? voted.add(questionId) : voted.delete(questionId)
+    saveVotedSet(voted)
+  }
+
+  // ── Hydrate voted state from localStorage on mount ────────
+  onMounted(() => {
+    hasVoted.value = loadVotedSet().has(questionId)
+    subscribeRealtime()
+  })
+
+  onUnmounted(() => {
+    if (channel) {
+      supabase.removeChannel(channel)
+      channel = null
+    }
+  })
+
+  // ── Realtime subscription ─────────────────────────────────
+  // Listens to UPDATE on questions (not question_votes) because
+  // trg_sync_upvotes writes the final upvote_count to questions.
+  // One channel per question — safe on list pages with many buttons.
+  function subscribeRealtime() {
+    channel = supabase
+      .channel(`upvote:${questionId}`)
+      .on(
+        'postgres_changes',
+        {
+          event:  'UPDATE',
+          schema: 'public',
+          table:  'questions',
+          filter: `id=eq.${questionId}`,
+        },
+        (payload) => {
+          const newCount: number | undefined = payload.new?.upvote_count
+
+          // Guard 1: malformed payload
+          if (typeof newCount !== 'number') return
+
+          // Guard 2: own request in-flight — optimistic value is already correct;
+          // accepting this push would double-apply the change
+          if (isPending.value) return
+
+          // Guard 3: nothing changed (Supabase fires UPDATE for any column change)
+          if (newCount === count.value) return
+
+          isRealtimeSyncing.value = true
+          count.value = newCount
+          setTimeout(() => { isRealtimeSyncing.value = false }, 800)
+        }
+      )
+      .subscribe()
+  }
+
+  // ── Toggle ────────────────────────────────────────────────
+  async function toggleUpvote() {
+    if (isPending.value) return
+
+    const fp = await getFingerprint()
+    if (!fp) return
+
+    const wasVoted  = hasVoted.value
+    const prevCount = count.value
+
+    // Optimistic update — mirrors the DB trigger:
+    //   INSERT → trigger increments upvote_count → +1
+    //   DELETE → trigger decrements upvote_count → -1
+    hasVoted.value  = !wasVoted
+    count.value     = wasVoted ? prevCount - 1 : prevCount + 1
+    isPending.value = true
+
+    try {
+      const data = await $fetch<{ success: boolean; action: string }>(
+        '/api/questions/vote',
+        {
+          method: 'POST',
+          body: { question_id: questionId, fingerprint: fp },
+        }
+      )
+
+      if (data.action === 'voted') {
+        // INSERT ok → trigger fired → +1 confirmed
+        // Optimistic +1 is correct
+        syncHasVoted(true)
+
+      } else if (data.action === 'retracted') {
+        // DELETE ok → trigger fired → -1 confirmed
+        // Optimistic -1 is correct
+        syncHasVoted(false)
+
+      } else if (data.action === 'force_retracted') {
+        // 23505 race: server found a stale existing row and deleted it.
+        // We thought the user wasn't voted (wasVoted=false), but they were.
+        // Correct the count: undo our optimistic +1, then apply the -1 from delete.
+        // Net result: prevCount - 1
+        syncHasVoted(false)
+        count.value = prevCount - 1
+      }
+      // No else branch needed — vote.post.ts throws on all other error conditions
+
+    } catch {
+      // Network / server error — full rollback, no DB change occurred
+      hasVoted.value = wasVoted   // direct write on rollback — no localStorage change needed
+      count.value    = prevCount
+    } finally {
+      isPending.value = false
+    }
+  }
+
+  return { count, hasVoted, isPending, isRealtimeSyncing, toggleUpvote }
+}
+
+===========================================================
+FILE 2: components/ui/UpvoteButton.vue
+===========================================================
+
+<!-- ============================================================
+  PROJECT: TANYA USTADZ V3
+  FILE: components/ui/UpvoteButton.vue
+  DESC: Upvote toggle button with optimistic UI + Realtime sync.
+       - Hover: filled-heart preview when not yet voted
+       - Hover: "Batalkan?" + heart_broken when already voted
+       - Vote:   pop scale + ripple ring animation
+       - Unvote: shrink + 6-particle burst explosion
+       - Realtime: count pulses briefly when another user votes
+       Props:
+         - questionId   : string  (required)
+         - initialCount : number  (required, from questions store)
+         - size         : 'sm' | 'md'  (default 'sm')
+============================================================ -->
+
+<script setup lang="ts">
+
+const props = withDefaults(
+  defineProps<{
+    questionId: string
+    initialCount: number
+    size?: 'sm' | 'md'
+  }>(),
+  { size: 'sm' }
+)
+
+const { count, hasVoted, isPending, isRealtimeSyncing, toggleUpvote } = useUpvote(
+  props.questionId,
+  props.initialCount
+)
+
+const isMd = computed(() => props.size === 'md')
+
+// ── Hover ─────────────────────────────────────────────────────
+const isHovered = ref(false)
+
+// ── Animation state ───────────────────────────────────────────
+const animState = ref<'idle' | 'voting' | 'unvoting'>('idle')
+
+// Burst particles for unvote
+const particles = ref<{ id: number; angle: number }[]>([])
+let particleId = 0
+
+function spawnParticles() {
+  const n = 6
+  particles.value = Array.from({ length: n }, (_, i) => ({
+    id: particleId++,
+    angle: (360 / n) * i,
+  }))
+  setTimeout(() => { particles.value = [] }, 700)
+}
+
+// ── Click ─────────────────────────────────────────────────────
+async function handleClick(e: Event) {
+  e.preventDefault()
+  e.stopPropagation()
+  if (isPending.value) return
+
+  if (hasVoted.value) {
+    animState.value = 'unvoting'
+    spawnParticles()
+    setTimeout(() => { animState.value = 'idle' }, 500)
+  } else {
+    animState.value = 'voting'
+    setTimeout(() => { animState.value = 'idle' }, 400)
+  }
+
+  await toggleUpvote()
+}
+</script>
+
+<template>
+  <ClientOnly>
+    <div class="relative inline-flex">
+
+      <!-- Burst particles (unvote) -->
+      <span
+        v-for="p in particles"
+        :key="p.id"
+        class="particle pointer-events-none absolute inset-0 m-auto w-1.5 h-1.5 rounded-full bg-primary"
+        :style="`--angle: ${p.angle}deg`"
+        aria-hidden="true"
+      />
+
+      <!-- Ripple ring (own vote) -->
+      <span
+        v-if="animState === 'voting'"
+        class="ripple pointer-events-none absolute inset-0 rounded-full border-2 border-primary"
+        aria-hidden="true"
+      />
+
+      <!-- Realtime ripple (someone else voted) -->
+      <span
+        v-if="isRealtimeSyncing"
+        class="ripple-rt pointer-events-none absolute inset-0 rounded-full border-2 border-primary/50"
+        aria-hidden="true"
+      />
+
+      <button
+        :disabled="isPending"
+        :aria-pressed="hasVoted"
+        :aria-label="hasVoted ? 'Cabut upvote' : 'Upvote pertanyaan ini'"
+        @click="handleClick"
+        @mouseenter="isHovered = true"
+        @mouseleave="isHovered = false"
+        :class="[
+          'relative inline-flex items-center gap-1.5 rounded-full font-bold select-none overflow-hidden',
+          'transition-all duration-200',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
+          'disabled:opacity-60 disabled:cursor-not-allowed active:scale-90',
+          isMd ? 'px-5 py-2.5 text-sm' : 'px-4 py-2 text-[11px]',
+          // Colour logic
+          hasVoted && isHovered
+            ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-500 dark:text-rose-400 shadow-sm'
+          : hasVoted
+            ? 'bg-primary text-white shadow-md shadow-primary/30'
+          : isHovered
+            ? 'bg-primary/15 dark:bg-primary/20 text-primary scale-105'
+          : 'bg-primary/5 dark:bg-primary/10 text-primary',
+          // Own-vote animation scale
+          animState === 'voting'   ? 'scale-110' : '',
+          animState === 'unvoting' ? 'scale-90'  : '',
+        ]"
+      >
+        <!-- Heart icon -->
+        <span
+          class="material-symbols-outlined leading-none transition-all duration-200"
+          :class="[
+            isMd ? 'text-[18px]' : 'text-sm',
+            animState === 'voting'     ? 'scale-125'          : '',
+            animState === 'unvoting'   ? 'scale-75 rotate-12' : '',
+            isPending                  ? 'animate-pulse'      : '',
+          ]"
+          :style="
+            (hasVoted && !isHovered) || (!hasVoted && isHovered)
+              ? `font-variation-settings: 'FILL' 1`
+              : `font-variation-settings: 'FILL' 0`
+          "
+          aria-hidden="true"
+        >{{ hasVoted && isHovered ? 'heart_broken' : 'favorite' }}</span>
+
+        <!-- Count — flashes on realtime update -->
+        <span
+          :class="[
+            'transition-all duration-150 whitespace-nowrap',
+            isRealtimeSyncing ? 'count-flash' : '',
+          ]"
+        >
+          <template v-if="hasVoted && isHovered">Batalkan?</template>
+          <template v-else>{{ count }}</template>
+        </span>
+      </button>
+    </div>
+
+    <!-- Fallback skeleton -->
+    <template #fallback>
+      <div
+        :class="[
+          'inline-flex items-center gap-1.5 rounded-full bg-primary/5 dark:bg-primary/10 text-primary font-bold',
+          isMd ? 'px-5 py-2.5 text-sm' : 'px-4 py-2 text-[11px]',
+        ]"
+        aria-hidden="true"
+      >
+        <span class="material-symbols-outlined leading-none" :class="isMd ? 'text-[18px]' : 'text-sm'">favorite</span>
+        <span>{{ initialCount }}</span>
+      </div>
+    </template>
+  </ClientOnly>
+</template>
+
+<style scoped>
+/* ── Own-vote burst particle ─────────────────────────────── */
+@keyframes burst {
+  0%   { transform: translate(-50%, -50%) rotate(var(--angle)) translateX(0px)  scale(1);   opacity: 1; }
+  60%  { transform: translate(-50%, -50%) rotate(var(--angle)) translateX(18px) scale(0.8); opacity: 0.8; }
+  100% { transform: translate(-50%, -50%) rotate(var(--angle)) translateX(26px) scale(0);   opacity: 0; }
+}
+.particle {
+  left: 50%;
+  top: 50%;
+  animation: burst 0.6s ease-out forwards;
+}
+
+/* ── Own-vote ripple ring ────────────────────────────────── */
+@keyframes ripple {
+  0%   { transform: scale(0.8); opacity: 0.7; }
+  100% { transform: scale(2);   opacity: 0;   }
+}
+.ripple {
+  animation: ripple 0.4s ease-out forwards;
+}
+
+/* ── Realtime ripple ring (slower, softer) ───────────────── */
+@keyframes ripple-rt {
+  0%   { transform: scale(1);    opacity: 0.5; }
+  100% { transform: scale(2.2);  opacity: 0;   }
+}
+.ripple-rt {
+  animation: ripple-rt 0.8s ease-out forwards;
+}
+
+/* ── Count flash on realtime update ─────────────────────── */
+@keyframes count-flash {
+  0%   { opacity: 1;    transform: translateY(0);     }
+  30%  { opacity: 0;    transform: translateY(-4px);  }
+  60%  { opacity: 0;    transform: translateY(4px);   }
+  100% { opacity: 1;    transform: translateY(0);     }
+}
+.count-flash {
+  animation: count-flash 0.5s ease-in-out forwards;
+}
+</style>
+
+===========================================================
+FILE 3: server/api/questions/vote.post.ts
+===========================================================
+
+// ============================================================
+// PROJECT: TANYA USTADZ V3
+// FILE: server/api/questions/vote.post.ts
+// DESC: Submit or retract an upvote for a question.
+//
+// DB CONTRACT (question_votes):
+//   - PRIMARY KEY: id (uuid, gen_random_uuid())
+//   - UNIQUE:      (question_id, fingerprint)
+//   - FK:          question_id → questions(id) ON DELETE CASCADE
+//   - INDEX:       idx_votes_fingerprint ON (question_id, fingerprint)
+//   - TRIGGER:     trg_sync_upvotes AFTER INSERT OR DELETE
+//                  → sync_upvote_count() → updates questions.upvote_count
+//                  → we NEVER manually touch upvote_count here
+//
+// VOTE FLOW:
+//   1. Validate inputs
+//   2. Confirm question exists and is not rejected
+//   3. SELECT to check vote existence (.maybeSingle())
+//      — avoids relying on deletedCount which RLS can silently block
+//   4a. Row EXISTS  → DELETE  → action: 'retracted'
+//   4b. Row MISSING → INSERT
+//       - Success          → action: 'voted'
+//       - 23505 (race)     → another request inserted between our
+//                            SELECT and INSERT; fall back to DELETE
+//                            → action: 'force_retracted'
+//       - Other error      → 500
+// ============================================================
+
+import { defineEventHandler, readBody, createError } from "h3";
+import { serverSupabaseClient } from "#supabase/server";
+
+export default defineEventHandler(async (event) => {
+  const body = await readBody(event);
+
+  const questionId: string  = (body?.question_id ?? "").trim();
+  const fingerprint: string = (body?.fingerprint  ?? "").trim();
+
+  // ── Validation ────────────────────────────────────────────
+  if (!questionId) {
+    throw createError({ statusCode: 400, message: "question_id wajib diisi." });
+  }
+  if (!fingerprint || fingerprint === "ssr-placeholder") {
+    throw createError({ statusCode: 400, message: "Fingerprint tidak valid." });
+  }
+
+  const supabase = await serverSupabaseClient(event);
+
+  // ── Confirm question exists and is voteable ───────────────
+  const { data: question, error: fetchError } = await supabase
+    .from("questions")
+    .select("id, status")
+    .eq("id", questionId)
+    .single();
+
+  if (fetchError || !question) {
+    throw createError({ statusCode: 404, message: "Pertanyaan tidak ditemukan." });
+  }
+  if (question.status === "rejected") {
+    throw createError({ statusCode: 403, message: "Pertanyaan ini tidak dapat di-upvote." });
+  }
+
+  // ── Step 3: Check vote existence via SELECT ───────────────
+  // We use .maybeSingle() instead of relying on deletedCount from
+  // .delete({ count: 'exact' }), because RLS policies can silently
+  // block the DELETE and return count=0 even when a row exists,
+  // causing the server to incorrectly attempt an INSERT.
+  const { data: existingVote, error: selectError } = await supabase
+    .from("question_votes")
+    .select("id")
+    .eq("question_id", questionId)
+    .eq("fingerprint", fingerprint)
+    .maybeSingle();
+
+  if (selectError) {
+    throw createError({ statusCode: 500, message: "Gagal memeriksa status vote." });
+  }
+
+  // ── Step 4a: Row exists → DELETE (unvote) ────────────────
+  if (existingVote) {
+    const { error: deleteError } = await supabase
+      .from("question_votes")
+      .delete()
+      .eq("question_id", questionId)
+      .eq("fingerprint", fingerprint);
+
+    if (deleteError) {
+      throw createError({ statusCode: 500, message: "Gagal menghapus vote." });
+    }
+
+    // trg_sync_upvotes fired → upvote_count decremented by trigger
+    return { success: true, action: "retracted" };
+  }
+
+  // ── Step 4b: Row missing → INSERT (vote) ─────────────────
+  const { error: insertError } = await supabase
+    .from("question_votes")
+    .insert({ question_id: questionId, fingerprint });
+
+  if (!insertError) {
+    // trg_sync_upvotes fired → upvote_count incremented by trigger
+    return { success: true, action: "voted" };
+  }
+
+  // ── Step 4b fallback: 23505 unique violation ──────────────
+  // Another concurrent request inserted the row between our SELECT
+  // and this INSERT. The user has effectively already voted, so we
+  // treat this as an unvote intent and delete the row they own.
+  if (insertError.code === "23505") {
+    const { error: fallbackDeleteError } = await supabase
+      .from("question_votes")
+      .delete()
+      .eq("question_id", questionId)
+      .eq("fingerprint", fingerprint);
+
+    if (fallbackDeleteError) {
+      // DELETE also failed — surface a clean error rather than hanging
+      throw createError({ statusCode: 500, message: "Gagal memproses vote (konflik data)." });
+    }
+
+    // trg_sync_upvotes fired on the fallback DELETE
+    return { success: true, action: "force_retracted" };
+  }
+
+  throw createError({ statusCode: 500, message: "Gagal menyimpan vote." });
+});
+
+===========================================================
+END OF COMPILATION
+===========================================================

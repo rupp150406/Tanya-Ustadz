@@ -2,6 +2,7 @@
 import { useQuestions } from '~/composables/useQuestions'
 import { useFingerprint } from '~/composables/useFingerprint'
 import UiThemeToggle from '~/components/ui/ThemeToggle.vue'
+// import UiUpvoteButton from '~/components/ui/UpvoteButton.vue' // DISABLED  
 
 // ─────────────────────────────────────────────────────────────
 // THEME
@@ -275,7 +276,7 @@ const getStatusLabel = (s) =>
                 <p class="text-[10px] text-outline dark:text-zinc-500 italic">Jawaban Ustadz</p>
               </div>
             </div>
-            <p class="text-sm text-on-surface-variant dark:text-zinc-400 line-clamp-3 leading-relaxed italic mb-4 px-1">"{{ q.answer }}"</p>
+            <p class="text-sm text-on-surface-variant dark:text-zinc-400 line-clamp-3 leading-relaxed italic mb-4 px-1 ">"{{ q.answer }}"</p>
           </template>
 
           <template v-else>
@@ -303,10 +304,10 @@ const getStatusLabel = (s) =>
               {{ getStatusLabel(q.status) }}
             </div>
 
-            <div class="flex items-center gap-1.5 px-4 py-2 rounded-full bg-primary/5 dark:bg-primary/10 text-primary group/upvote transition-all duration-200">
-              <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">favorite</span>
-              <span class="text-[11px] font-bold">{{ q.upvotes || 0 }}</span>
-            </div>
+            <!-- <UiUpvoteButton
+              :question-id="q.id"
+              :initial-count="q.upvotes ?? 0"
+              size="sm" /> DISABLED -->
           </div>
         </NuxtLink>
       </div>

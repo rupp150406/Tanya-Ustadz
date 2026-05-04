@@ -86,4 +86,8 @@ export default defineNuxtConfig({
   components: [
     { path: '~/components', pathPrefix: false },
   ],
+
+  // --- ERROR HANDLING ---
+  // Custom error page automatically detected from error.vue in root directory
+  // Nuxt 3 will automatically use this for all error states
 });

@@ -2,6 +2,7 @@
 import { computed, onMounted } from 'vue'
 import { useQuestions } from '~/composables/useQuestions'
 import UiThemeToggle from '~/components/ui/ThemeToggle.vue'
+// import UiUpvoteButton from '~/components/ui/UpvoteButton.vue' // DISABLED
 
 // ─── Theme ────────────────────────────────────────────────────
 const { initTheme } = useTheme()
@@ -53,6 +54,27 @@ function handleAvatarError(event) {
   const img = event.target
   img.style.display = 'none'
 }
+
+// ─── Share Function ─────────────────────────────────────────
+async function handleShare() {
+  try {
+    const url = window.location.href
+    await navigator.clipboard.writeText(url)
+    // You could add a toast notification here if needed
+    console.log('Link copied to clipboard:', url)
+  } catch (err) {
+    // Fallback for older browsers
+    const url = window.location.href
+    const textArea = document.createElement('textarea')
+    textArea.value = url
+    document.body.appendChild(textArea)
+    textArea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textArea)
+    console.log('Link copied to clipboard (fallback):', url)
+  }
+}
+
 </script>
 
 <template>
@@ -168,16 +190,11 @@ function handleAvatarError(event) {
 
           <!-- Upvote + Share -->
           <div v-if="q.status === 'answered'" class="flex items-center gap-6 mt-8 pl-5">
-            <button @click="toggleUpvote"
-              class="flex items-center gap-2 group transition-all duration-200 active:scale-90">
-              <div class="w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-200"
-                :class="upvoted ? 'bg-primary text-white' : 'bg-surface-container-low dark:bg-zinc-800 group-hover:bg-primary/10 text-primary'">
-                <span class="material-symbols-outlined"
-                  :style="upvoted ? `font-variation-settings:'FILL' 1` : ''">thumb_up</span>
-              </div>
-              <span class="font-bold text-on-surface dark:text-zinc-200">{{ localUpvotes.toLocaleString('id-ID') }}</span>
-            </button>
-            <button class="flex items-center gap-2 group">
+            <!-- <UiUpvoteButton
+              :question-id="q.id"
+              :initial-count="q.upvotes ?? 0"
+              size="sm" /> DISABLED -->
+            <button @click="handleShare" class="flex items-center gap-2 group active:scale-95 transition-transform">
               <div class="w-10 h-10 rounded-full bg-surface-container-low dark:bg-zinc-800 group-hover:bg-surface-container dark:group-hover:bg-zinc-700 flex items-center justify-center transition-colors">
                 <span class="material-symbols-outlined text-outline dark:text-zinc-500">share</span>
               </div>
@@ -306,7 +323,7 @@ function handleAvatarError(event) {
                           prose-blockquote:border-l-4 prose-blockquote:border-emerald-200 dark:prose-blockquote:border-emerald-800
                           prose-blockquote:bg-surface-container-low dark:prose-blockquote:bg-zinc-800 prose-blockquote:px-6 prose-blockquote:py-4
                           prose-blockquote:rounded-r-2xl prose-blockquote:text-on-surface-variant prose-blockquote:italic prose-blockquote:my-8
-                          prose-ol:pl-5 prose-li:leading-relaxed prose-p:mb-4"
+                          prose-ol:pl-5 prose-li:leading-relaxed prose-p:mb-4 whitespace-pre-line"
                 v-html="q.answer">
               </div>
 
