@@ -22,3 +22,17 @@ logs
 .env
 .env.*
 !.env.example
+
+# HTML files (development/testing)
+*.html
+dark-mode.html
+dashboard-admin-dot-vue.txt
+index.html
+halaman-depan.html
+password-page.html
+profile-responsive.html
+schedule.html
+select-role.html
+test.html
+white-mode.html
+alert.html
