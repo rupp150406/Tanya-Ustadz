@@ -213,6 +213,21 @@ const handleSubmit = async () => {
       <div class="fixed top-20 right-[-10%] w-96 h-96 opacity-10 pointer-events-none">
         <img src="https://ahsan.tv/wp-content/uploads/2026/05/unnamed.webp" alt="" class="w-full h-full text-primary" />
       </div>
+                  <footer class="mt-20 pt-10 pb-8 border-t border-outline-variant/15 dark:border-zinc-800 text-center"> 
+          <p class="max-w-md mx-auto italic text-on-surface-variant/50 dark:text-zinc-600 font-body text-sm mb-6 px-4 leading-relaxed">
+            "Sesungguhnya amalan yang paling dicintai Allah adalah amalan yang berkelanjutan (istiqomah) walaupun sedikit."
+            <span class="not-italic font-semibold text-outline dark:text-zinc-500">(HR. Muslim)</span>
+          </p>
+          <div class="flex flex-col sm:flex-row justify-center items-center mt-10 gap-10 text-outline dark:text-zinc-600 text-[10px] uppercase tracking-widest font-bold">
+            <p>© 2026 Ahsan TV. All Rights Reserved by Team IT</p>
+            <div class="flex gap-5">
+              <NuxtLink to="/kebijakan" class="hover:text-primary transition-colors">Kebijakan Privasi</NuxtLink>
+            </div>
+            <div class="flex gap-5">
+              <NuxtLink to="/terms" class="hover:text-primary transition-colors">Syarat dan Ketentuan</NuxtLink>
+            </div>
+          </div>
+        </footer>
     </main>
   </div>
 </template>

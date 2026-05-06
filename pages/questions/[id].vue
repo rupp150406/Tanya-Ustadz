@@ -347,6 +347,9 @@ async function handleShare() {
             <div class="flex gap-5">
               <NuxtLink to="/kebijakan" class="hover:text-primary transition-colors">Kebijakan Privasi</NuxtLink>
             </div>
+            <div class="flex gap-5">
+              <NuxtLink to="/terms" class="hover:text-primary transition-colors">Syarat & Ketentuan</NuxtLink>
+            </div>
           </div>
         </footer>
 

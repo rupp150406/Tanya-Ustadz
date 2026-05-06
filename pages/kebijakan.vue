@@ -378,7 +378,7 @@ const handleAvatarError = () => { avatarBroken.value = true }
               "Semoga Allah senantiasa menjaga kita semua dalam ketaatan dan memudahkan langkah kita
               dalam menuntut ilmu."
             </p>
-            <p class="mt-6 text-xs font-bold tracking-widest uppercase">AhsanTV Developer Team</p>
+            <p class="mt-6 text-xs font-bold tracking-widest uppercase">AhsanTV Development Team</p>
           </div>
         </div>
 
