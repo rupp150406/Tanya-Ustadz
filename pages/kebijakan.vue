@@ -387,10 +387,19 @@ const handleAvatarError = () => { avatarBroken.value = true }
 
     <!-- Footer -->
     <footer
-      class="bg-white dark:bg-emerald-950 flex flex-col md:flex-row justify-center items-center gap-6 py-8 px-4 w-full relative z-10"
+      class="mt-20 pt-10 pb-8 border-t border-outline-variant/15 dark:border-zinc-800 text-center"
     >
-      <div class="font-plus-jakarta text-xs text-slate-400 dark:text-slate-500">
-        © 2026 Ahsan TV. All Rights Reserved by Team IT
+      <p
+        class="max-w-md mx-auto italic text-on-surface-variant/50 dark:text-zinc-600 font-body text-sm mb-6 px-4 leading-relaxed"
+      >
+        "Sesungguhnya amalan yang paling dicintai Allah adalah amalan yang berkelanjutan
+        (istiqomah) walaupun sedikit."
+        <span class="not-italic font-semibold text-outline dark:text-zinc-500">(HR. Muslim)</span>
+      </p>
+      <div
+        class="flex flex-col sm:flex-row justify-center items-center gap-10 text-outline dark:text-zinc-600 text-[10px] uppercase tracking-widest font-bold"
+      >
+        <p> 2026 Ahsan TV. All Rights Reserved by Team IT</p>
       </div>
     </footer>
   </div>
