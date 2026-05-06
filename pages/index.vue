@@ -207,7 +207,7 @@ const getStatusLabel = (s) =>
 
       <div class="mb-10 relative overflow-hidden rounded-[2rem] bg-primary h-52 flex flex-col justify-end p-8 shadow-xl shadow-primary/10 transition-transform hover:scale-[1.01] duration-500">
         <div class="absolute inset-0">
-          <img class="w-full h-full object-cover" src="https://ahsan.tv/wp-content/uploads/2026/04/test-2.png" />
+          <img class="w-full h-full object-cover" src="https://ahsan.tv/wp-content/uploads/2026/05/test.webp" />
           <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
         </div>
         <div class="relative z-10">

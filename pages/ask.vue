@@ -211,7 +211,7 @@ const handleSubmit = async () => {
       </div>
 
       <div class="fixed top-20 right-[-10%] w-96 h-96 opacity-10 pointer-events-none">
-        <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuALbJLnCOM9cscKqUVeAc6HaUh6ox8tiEyVRPs1cJ6UgN7KrF24OGrU5az_RWDAvA10-uTdOAP34sX8cgdPEUUsVpk92CYD2BiEYrUMylSHJ7GcPqU920wj23DrhBxtV9VKRk4fcRQwvxS6uod1gZCZv1x6l8hSXnEcdN_UDJ1XYBpJ6Ic8ODYvzh2pSHTvIYi6MUX2gMPjKjOYCVo5uarM8wDrddwB_7rn0dikfFaa5mCxH_KmXzzyT-maLkY-t1JspKskZUKKFRs" alt="" class="w-full h-full text-primary" />
+        <img src="https://ahsan.tv/wp-content/uploads/2026/05/unnamed.webp" alt="" class="w-full h-full text-primary" />
       </div>
     </main>
   </div>

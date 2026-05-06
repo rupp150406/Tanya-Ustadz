@@ -118,7 +118,7 @@ onMounted(() => {
           <img
             alt="Scenic landscape"
             class="w-full h-full object-cover"
-            src="https://ahsan.tv/wp-content/uploads/2026/04/rumah.jpg"
+            src="https://ahsan.tv/wp-content/uploads/2026/05/ohyeah.webp"
           />
         </div>
       </div>
