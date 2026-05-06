@@ -159,7 +159,7 @@ const handleAvatarError = () => { avatarBroken.value = true }
                 1. Tujuan Layanan
               </h2>
               <p class="font-nunito text-lg text-on-surface-variant dark:text-zinc-300 leading-relaxed">
-                Layanan Tanya Ustadz V3 hadir sebagai jembatan ilmu antara Jemaah dengan para
+                Layanan Tanya Ustadz  hadir sebagai jembatan ilmu antara Jemaah dengan para
                 Asatidzah untuk mempermudah akses pemahaman agama Islam yang berdasarkan Al-Qur'an
                 dan As-Sunnah dengan pemahaman para sahabat. Seluruh konten bertujuan untuk edukasi
                 dan dakwah, bukan sebagai pengganti konsultasi hukum atau medis profesional.
@@ -185,11 +185,18 @@ const handleAvatarError = () => { avatarBroken.value = true }
                 </li>
                 <li class="flex gap-4">
                   <span class="w-1.5 h-1.5 mt-2.5 rounded-full bg-primary dark:bg-zinc-400 flex-shrink-0"></span>
-                  Pertanyaan harus bersifat umum (bukan masalah privat yang sangat sensitif).
+                  Menghindari pertanyaan yang bersifat mengadu domba antar ulama atau kelompok.
                 </li>
                 <li class="flex gap-4">
                   <span class="w-1.5 h-1.5 mt-2.5 rounded-full bg-primary dark:bg-zinc-400 flex-shrink-0"></span>
-                  Menghindari pertanyaan yang bersifat mengadu domba antar ulama atau kelompok.
+                  <div>
+                  Kami memahami bahwa beberapa persoalan agama mungkin terasa sangat pribadi atau sensitif untuk ditanyakan di forum terbuka. 
+                  <br>
+                  Oleh karena itu, platform ini 
+                  <b>memperbolehkan Antum untuk menanyakan masalah pribadi selama masih dalam ranah hukum agama.</b>
+                  Karena sistem kami tidak meminta identitas, 
+                  Antum dapat berkonsultasi mengenai urusan yang paling sensitif sekalipun dengan rasa aman dan tenang, tanpa perlu khawatir identitas Antum diketahui oleh siapa pun..
+                </div>
                 </li>
               </ul>
             </div>
@@ -241,7 +248,7 @@ const handleAvatarError = () => { avatarBroken.value = true }
               <p class="font-nunito text-lg text-on-surface-variant dark:text-zinc-300 leading-relaxed">
                 Tim Admin berhak melakukan penyuntingan (editing) pada teks pertanyaan untuk
                 memperbaiki tata bahasa tanpa mengubah substansi, atau menolak pertanyaan yang
-                dianggap tidak sesuai dengan visi dan misi Tanya Ustadz V3.
+                dianggap tidak sesuai dengan visi dan misi Tanya Ustadz.
               </p>
             </div>
           </article>
