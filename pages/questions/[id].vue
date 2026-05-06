@@ -139,7 +139,7 @@ async function handleShare() {
         </div>
         <h3 class="text-lg font-extrabold font-headline text-on-surface dark:text-zinc-100">Pertanyaan Tidak Ditemukan</h3>
         <p class="text-sm text-outline dark:text-zinc-500 max-w-xs leading-relaxed">
-          Pertanyaan yang Anda cari mungkin telah dihapus atau ID-nya tidak valid.
+          Pertanyaan yang antum cari mungkin telah dihapus atau ID-nya tidak valid.
         </p>
         <NuxtLink to="/"
           class="mt-2 inline-flex items-center gap-2 bg-primary text-white text-sm font-bold px-6 py-2.5 rounded-full hover:opacity-90 active:scale-95 transition-all duration-150">
@@ -223,7 +223,7 @@ async function handleShare() {
                 Moderasi Sedang Berlangsung
               </h4>
               <p class="text-amber-800/70 dark:text-amber-500 max-w-sm mx-auto leading-relaxed text-sm mb-8">
-                Pertanyaan Anda saat ini sedang dalam antrean moderasi oleh tim admin kami.
+                Pertanyaan antum saat ini sedang dalam antrean moderasi oleh tim admin kami.
                 Terima kasih atas kesabaran Anda.
               </p>
               <div class="grid grid-cols-2 gap-3 w-full max-w-xs">
@@ -243,7 +243,7 @@ async function handleShare() {
           <div class="mt-5 flex items-start gap-3 px-1">
             <div class="w-[3px] self-stretch bg-amber-200 dark:bg-amber-800 rounded-full shrink-0 mt-0.5"></div>
             <p class="text-xs text-outline/80 dark:text-zinc-500 leading-relaxed italic">
-              Proses moderasi biasanya membutuhkan waktu 1–3 hari kerja. Anda akan mendapat notifikasi
+              Proses moderasi biasanya membutuhkan waktu 1–3 hari kerja. antum akan mendapat notifikasi
               setelah pertanyaan lolos verifikasi.
             </p>
           </div>
@@ -263,7 +263,7 @@ async function handleShare() {
                 Menunggu Jawaban Ustadz
               </h4>
               <p class="text-on-surface-variant dark:text-zinc-400 max-w-sm mx-auto leading-relaxed text-sm mb-8">
-                Pertanyaan Anda telah
+                Pertanyaan antum telah
                 <span class="text-primary font-bold">Terverifikasi</span>
                 oleh tim admin kami dan saat ini berada dalam antrean untuk dijawab oleh Ustadz pilihan.
               </p>
@@ -345,8 +345,7 @@ async function handleShare() {
           <div class="flex flex-col sm:flex-row justify-between items-center gap-3 text-outline dark:text-zinc-600 text-[10px] uppercase tracking-widest font-bold">
             <p>© 2026 Ahsan TV. All Rights Reserved by Team IT</p>
             <div class="flex gap-5">
-              <NuxtLink to="#" class="hover:text-primary transition-colors">Kebijakan Privasi</NuxtLink>
-              <NuxtLink to="#" class="hover:text-primary transition-colors">Panduan Komunitas</NuxtLink>
+              <NuxtLink to="/kebijakan" class="hover:text-primary transition-colors">Kebijakan Privasi</NuxtLink>
             </div>
           </div>
         </footer>

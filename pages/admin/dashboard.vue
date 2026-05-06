@@ -223,7 +223,7 @@ async function approveQuestion(id: string) {
 }
 
 async function rejectQuestion(id: string) {
-  if (!confirm('Apakah Anda yakin ingin menolak pertanyaan ini?')) return
+  if (!confirm('Apakah antum yakin ingin menolak pertanyaan ini?')) return
   try {
     await $fetch('/api/admin/moderate', { method: 'POST', body: { questionId: id, action: 'rejected' } })
     updateInList(id, { status: 'rejected' })

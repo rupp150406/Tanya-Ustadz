@@ -420,7 +420,7 @@ async function handleUpdateProfile(): Promise<void> {
           <div class="bg-surface-container-low p-4 rounded-2xl text-left mb-6">
             <p class="text-xs font-bold text-on-surface mb-2">Kemungkinan Penyebab:</p>
             <ul class="text-xs text-on-surface-variant space-y-1 list-disc list-inside">
-              <li>Role akun Anda bukan <code>ustadz</code> di tabel <code>profiles</code></li>
+              <li>Role akun antum bukan <code>ustadz</code> di tabel <code>profiles</code></li>
               <li>RLS Supabase mencegah UPSERT pada tabel <code>profiles</code></li>
               <li>Server API <code>/api/admin/profile/upsert</code> belum dibuat</li>
               <li>Masalah koneksi jaringan sementara</li>
@@ -448,7 +448,7 @@ async function handleUpdateProfile(): Promise<void> {
             Dashboard Ustadz
           </h1>
           <p class="text-on-surface-variant text-base md:text-lg">
-            Jawab pertanyaan ummat dan kelola profil Anda di Tanya Ustadz V3.
+            Jawab pertanyaan ummat dan kelola profil antum di Tanya Ustadz V3.
           </p>
         </section>
 

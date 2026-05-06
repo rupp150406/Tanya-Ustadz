@@ -258,7 +258,7 @@ async function handleUpdateProfile() {
           <div class="bg-surface-container-low dark:bg-zinc-900 p-4 rounded-2xl text-left mb-6 border dark:border-zinc-800">
             <p class="text-xs font-bold text-on-surface dark:text-zinc-200 mb-2">Kemungkinan Penyebab:</p>
             <ul class="text-xs text-on-surface-variant dark:text-zinc-400 space-y-1 list-disc list-inside">
-              <li>Role akun Anda bukan <code>ustadz</code> di tabel <code>profiles</code></li>
+              <li>Role akun antum bukan <code>ustadz</code> di tabel <code>profiles</code></li>
               <li>RLS Supabase mencegah UPSERT pada tabel <code>profiles</code></li>
               <li>Server API <code>/api/admin/profile/upsert</code> belum dibuat</li>
               <li>Masalah koneksi jaringan sementara</li>
@@ -276,7 +276,7 @@ async function handleUpdateProfile() {
         <!-- Hero -->
         <section class="text-center md:text-left">
           <h1 class="font-extrabold text-3xl md:text-4xl text-on-surface dark:text-zinc-100 tracking-tight mb-2">Dashboard Ustadz</h1>
-          <p class="text-on-surface-variant dark:text-zinc-400 text-base md:text-lg">Jawab pertanyaan ummat dan kelola profil Anda di Tanya Ustadz V3.</p>
+          <p class="text-on-surface-variant dark:text-zinc-400 text-base md:text-lg">Jawab pertanyaan ummat dan kelola profil antum di Tanya Ustadz V3.</p>
         </section>
 
         <!-- Profile + Stats -->

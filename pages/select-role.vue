@@ -118,7 +118,7 @@ async function handleConfirm() {
             Masuk Sebagai Apa?
           </h1>
           <p class="text-on-surface-variant text-lg max-w-lg mx-auto">
-            Silakan pilih peran Anda untuk melanjutkan ke dashboard yang sesuai dengan wewenang Anda.
+            Silakan pilih peran antum untuk melanjutkan ke dashboard yang sesuai dengan wewenang Anda.
           </p>
         </div>
 

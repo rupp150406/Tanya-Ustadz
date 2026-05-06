@@ -24,7 +24,6 @@ logs
 !.env.example
 
 # HTML files (development/testing)
-*.html
 dark-mode.html
 dashboard-admin-dot-vue.txt
 index.html

@@ -1,0 +1,416 @@
+
+<script setup lang="ts">
+import UiThemeToggle from '~/components/ui/ThemeToggle.vue'
+import { useTheme } from '~/composables/useTheme'
+
+// ── Theme ─────────────────────────────────────────────────────
+const { initTheme } = useTheme()
+onMounted(() => initTheme())
+
+// ... rest of the code remains the same ...
+// PROFILE — READ-ONLY CONSUMER
+// ─────────────────────────────────────────────────────────────
+const profile = useState('user-profile')
+const avatarBroken = ref(false)
+
+watch(profile, () => { avatarBroken.value = false })
+
+// ─────────────────────────────────────────────────────────────
+// COMPUTED — AVATAR
+// ─────────────────────────────────────────────────────────────
+const shouldShowAvatar = computed(() => {
+  const role = profile.value?.role?.toLowerCase()
+  return role === 'admin_it' || role === 'ustadz'
+})
+
+const showAvatarImage = computed(() =>
+  shouldShowAvatar.value &&
+  typeof profile.value?.avatar_url === 'string' &&
+  profile.value.avatar_url.length > 15 &&
+  !avatarBroken.value
+)
+
+const userInitial = computed(() =>
+  profile.value?.full_name?.charAt(0).toUpperCase() ?? 'U'
+)
+
+const dashboardRoute = computed(() => {
+  const role = profile.value?.role?.toLowerCase()
+  if (role === 'admin_it') return '/admin/dashboard'
+  if (role === 'ustadz')   return '/ustadz/dashboard'
+  return null
+})
+
+const handleAvatarClick = () => { if (dashboardRoute.value) navigateTo(dashboardRoute.value) }
+const handleAvatarError = () => { avatarBroken.value = true }
+</script>
+
+<template>
+  <div class="bg-surface dark:bg-zinc-950 text-on-surface dark:text-zinc-100 font-nunito selection:bg-secondary-container selection:text-on-secondary-container">
+    <!-- Top Navigation Bar -->
+    <header
+      class="bg-surface/70 dark:bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 shadow-sm bg-gradient-to-b from-slate-100/10 dark:from-zinc-800/10 to-transparent border-b border-transparent dark:border-zinc-800/50"
+    >
+      <div class="flex justify-between items-center w-full px-6 py-3 max-w-screen-2xl mx-auto">
+        <div class="flex items-center gap-4">
+          <NuxtLink
+            to="/"
+            class="text-2xl font-bold tracking-tighter text-emerald-800 dark:text-emerald-400 font-headline"
+          >
+            Tanya Ustadz
+          </NuxtLink>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <!-- Theme Toggle -->
+          <UiThemeToggle />
+                    <div v-if="shouldShowAvatar" class="relative group/avatar">
+            <button
+              @click="handleAvatarClick"
+              class="relative flex items-center justify-center w-11 h-11 rounded-full overflow-hidden border-2 border-[#A6F55B]/30 shadow-md hover:ring-2 hover:ring-[#A6F55B] hover:scale-105 transition-all duration-300 cursor-pointer bg-emerald-900"
+              :title="`${profile.full_name} (${profile.role})`"
+            >
+              <img
+                v-if="showAvatarImage"
+                :src="profile.avatar_url"
+                :alt="profile.full_name"
+                class="w-full h-full object-cover"
+                referrerpolicy="no-referrer"
+                @error="handleAvatarError"
+              />
+              <span v-else class="text-white font-bold text-base select-none">
+                {{ userInitial }}
+              </span>
+            </button>
+
+            <!-- Tooltip dropdown -->
+            <div class="absolute right-0 top-full mt-3 w-56 bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-emerald-50 dark:border-zinc-700 p-4 opacity-0 invisible group-hover/avatar:opacity-100 group-hover/avatar:visible transition-all duration-200 z-50">
+              <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 rounded-full overflow-hidden bg-emerald-900 flex items-center justify-center flex-shrink-0">
+                  <img
+                    v-if="showAvatarImage"
+                    :src="profile.avatar_url"
+                    :alt="profile.full_name"
+                    class="w-full h-full object-cover"
+                    referrerpolicy="no-referrer"
+                    @error="handleAvatarError"
+                  />
+                  <span v-else class="text-white font-bold text-sm select-none">
+                    {{ userInitial }}
+                  </span>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-sm font-bold text-emerald-900 dark:text-emerald-300 truncate">{{ profile.full_name }}</p>
+                  <p class="text-xs text-emerald-600 dark:text-emerald-500 capitalize">{{ profile.role?.replace('_', ' ') }}</p>
+                </div>
+              </div>
+              <div class="border-t border-emerald-50 dark:border-zinc-700 pt-3">
+                <button
+                  @click="handleAvatarClick"
+                  class="w-full text-left text-xs text-emerald-600 dark:text-emerald-400 font-semibold hover:text-emerald-800 dark:hover:text-emerald-200 transition-colors flex items-center justify-between"
+                >
+                  <span>Buka Dashboard</span>
+                  <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="pt-32 pb-40 min-h-screen">
+      <div class="max-w-4xl mx-auto px-6 lg:px-0">
+
+        <!-- Header Section -->
+        <div class="text-center mb-20">
+          <div class="bismillah-text text-4xl md:text-5xl text-[#006948] dark:text-zinc-400 mb-8">
+            بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ
+          </div>
+          <h1 class="font-headline text-4xl md:text-5xl font-extrabold text-on-surface dark:text-zinc-100 tracking-tight mb-6">
+            Kebijakan Privasi
+          </h1>
+          <div
+            class="inline-flex items-center gap-2 px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full text-sm font-semibold dark:bg-zinc-700 dark:text-zinc-200"
+          >
+            <span class="material-symbols-outlined text-lg">verified_user</span>
+            Terakhir Diperbarui: Mei 2026
+          </div>
+        </div>
+
+        <!-- Intro Section -->
+        <section
+          class="bg-surface-container-lowest dark:bg-zinc-900 rounded-3xl p-8 md:p-12 mb-12 shadow-sm relative overflow-hidden"
+        >
+          <div
+            class="absolute top-0 right-0 w-64 h-64 bg-primary-fixed-dim/10 dark:bg-primary-fixed-dim/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"
+          ></div>
+          <div class="relative z-10">
+            <p class="text-lg leading-relaxed text-on-surface-variant dark:text-zinc-300">
+              Ahlan Wa Sahlan, Selamat datang di Program Tanya Ustadz. Kami sangat menghargai
+              kepercayaan Antum dan berkomitmen untuk melindungi privasi serta data pribadi Antum
+              dalam perjalanan menuntut ilmu syar'i. Kebijakan ini menjelaskan bagaimana kami
+              mengelola informasi Antum.
+            </p>
+          </div>
+        </section>
+
+        <!-- Modern Promise Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-20">
+          <!-- Card: Keamanan -->
+          <div class="bg-surface-container-low dark:bg-zinc-800 p-6 rounded-2xl group hover:shadow-md transition-all duration-300">
+            <div
+              class="w-12 h-12 bg-white dark:bg-zinc-900 rounded-xl flex items-center justify-center mb-4 text-[#006948] group-hover:bg-[#006948] group-hover:text-white transition-colors"
+            >
+              <span class="material-symbols-outlined">security</span>
+            </div>
+            <h3 class="font-headline font-bold text-xl mb-2 text-on-surface dark:text-zinc-100">Keamanan dan Perlindungan Data</h3>
+            <p class="text-on-surface-variant dark:text-zinc-300 text-sm">
+              Kami menerapkan sistem enkripsi dan protokol keamanan standar industri untuk
+              memastikan setiap pesan pertanyaan yang Antum kirimkan terlindungi dengan aman di
+              dalam pangkalan data kami. Upaya ini adalah bagian dari komitmen kami dalam menjaga
+              setiap baris kalimat yang Antum titipkan agar tidak disalahgunakan oleh pihak yang
+              tidak bertanggung jawab.
+            </p>
+          </div>
+
+          <!-- Card: Anonimitas -->
+          <div class="bg-surface-container-low dark:bg-zinc-800 p-6 rounded-2xl group hover:shadow-md transition-all duration-300">
+            <div
+              class="w-12 h-12 bg-white dark:bg-zinc-900 rounded-xl flex items-center justify-center mb-4 text-[#006948] group-hover:bg-[#006948] group-hover:text-white transition-colors"
+            >
+              <span class="material-symbols-outlined">visibility_off</span>
+            </div>
+            <h3 class="font-headline font-bold text-xl mb-2 text-on-surface dark:text-zinc-100">
+              Menjaga Kerahasiaan Identitas (Anonimitas Mutlak)
+            </h3>
+            <p class="text-on-surface-variant dark:text-zinc-300 text-sm">
+              Sesuai dengan prinsip utama platform ini, kami tidak pernah dan tidak akan pernah
+              meminta informasi pribadi Antum, baik itu Nama Lengkap, Alamat Email, maupun Nomor
+              Telepon untuk sekadar mengajukan pertanyaan. Antum dapat bertanya dengan tenang tanpa
+              perlu khawatir identitas asli Antum tercatat di dalam sistem kami.
+            </p>
+          </div>
+
+          <!-- Card: Pihak Ketiga -->
+          <div class="bg-surface-container-low dark:bg-zinc-800 p-6 rounded-2xl group hover:shadow-md transition-all duration-300">
+            <div
+              class="w-12 h-12 bg-white dark:bg-zinc-900 rounded-xl flex items-center justify-center mb-4 text-[#006948] group-hover:bg-[#006948] group-hover:text-white transition-colors"
+            >
+              <span class="material-symbols-outlined">share_off</span>
+            </div>
+            <h3 class="font-headline font-bold text-xl mb-2 text-on-surface dark:text-zinc-100">Menjaga Amanah dari Pihak Ketiga</h3>
+            <p class="text-on-surface-variant dark:text-zinc-300 text-sm">
+              Kami memegang teguh amanah untuk
+              <strong>tidak akan pernah menjual, menyewakan, atau menyebarkan</strong>
+              informasi maupun pertanyaan Antum kepada pihak eksternal mana pun. Platform ini murni
+              merupakan sarana dakwah yang berdiri sendiri, sehingga data Antum tidak akan pernah
+              diberikan kepada pihak pengiklan atau perusahaan pihak ketiga untuk kepentingan
+              komersial.
+            </p>
+          </div>
+
+          <!-- Card: Amanah Ilmiah -->
+          <div class="bg-surface-container-low dark:bg-zinc-800 p-6 rounded-2xl group hover:shadow-md transition-all duration-300">
+            <div
+              class="w-12 h-12 bg-white dark:bg-zinc-900 rounded-xl flex items-center justify-center mb-4 text-[#006948] group-hover:bg-[#006948] group-hover:text-white transition-colors"
+            >
+              <span class="material-symbols-outlined">history_edu</span>
+            </div>
+            <h3 class="font-headline font-bold text-xl mb-2 text-on-surface dark:text-zinc-100">Amanah Ilmiah &amp; Peningkatan Layanan</h3>
+            <p class="text-on-surface-variant dark:text-zinc-300 text-sm">
+              Data interaksi yang bersifat teknis dan anonim semata-mata hanya digunakan untuk
+              meningkatkan kualitas jawaban serta mengoptimalkan pengalaman belajar Antum di
+              platform ini. Setiap masukan dan pola interaksi yang ada kami kelola sebagai bahan
+              evaluasi agar sarana dakwah ini dapat memberikan manfaat yang lebih luas bagi umat.
+            </p>
+          </div>
+        </div>
+
+        <!-- Content Sections -->
+        <div class="space-y-12">
+
+          <!-- Section 1: Informasi yang Kami Jaga -->
+          <div class="flex flex-col md:flex-row gap-8 items-start">
+            <div
+              class="flex-shrink-0 w-14 h-14 bg-[#006948]/10 rounded-full flex items-center justify-center text-[#006948]"
+            >
+              <span
+                class="material-symbols-outlined text-3xl"
+                style="font-variation-settings: 'FILL' 1;"
+              >person_search</span>
+            </div>
+            <div class="flex-grow">
+              <h2 class="font-headline text-2xl font-bold mb-4 text-on-surface dark:text-zinc-100">Informasi yang Kami Jaga</h2>
+              <p class="text-on-surface-variant dark:text-zinc-300 leading-relaxed mb-4">
+                Demi menghadirkan layanan yang aman dan nyaman tanpa mengorbankan privasi, kami
+                hanya mengelola informasi yang bersifat fungsional saat Antum menggunakan platform
+                ini:
+              </p>
+              <ul class="space-y-3 list-none pl-0">
+                <li class="flex items-start gap-3">
+                  <span class="material-symbols-outlined text-[#006948] text-xl mt-0.5">check_circle</span>
+                  <span class="text-on-surface-variant dark:text-zinc-300">
+                    <strong>Pesan Pertanyaan:</strong> Kami menyimpan teks pertanyaan dan kategori
+                    yang Antum pilih agar dapat diproses oleh Ustadz. Jika Antum menyertakan
+                    lampiran, data tersebut juga kami jaga kerahasiaannya hanya untuk keperluan
+                    jawaban.
+                  </span>
+                </li>
+                <li class="flex items-start gap-3">
+                  <span class="material-symbols-outlined text-[#006948] text-xl mt-0.5">check_circle</span>
+                  <span class="text-on-surface-variant dark:text-zinc-300">
+                    <strong>Identitas Perangkat Anonim:</strong> Kami menggunakan sistem technical
+                    hashing (sidik jari perangkat) semata-mata untuk mencegah gangguan spam dan
+                    memastikan ketertiban sistem. Kami tegaskan kembali: sistem ini tidak dapat dan
+                    tidak akan pernah digunakan untuk melacak identitas asli, wajah, ataupun nama
+                    Antum.
+                  </span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Section 2: Penggunaan Informasi (with Image) -->
+          <div class="bg-surface-container-low dark:bg-zinc-900 rounded-3xl overflow-hidden flex flex-col md:flex-row-reverse">
+            <div class="md:w-1/2 h-64 md:h-auto">
+              <img
+                class="w-full h-full object-cover"
+                src="https://ahsan.tv/wp-content/uploads/2026/05/maybe.png"
+                alt="A serene digital office workspace featuring clean design and a focus on data privacy."
+              />
+            </div>
+            <div class="md:w-1/2 p-8 md:p-10 flex flex-col justify-center">
+              <div
+                class="flex-shrink-0 w-12 h-12 bg-[#006948]/10 rounded-full flex items-center justify-center text-[#006948] mb-6"
+              >
+                <span class="material-symbols-outlined">hub</span>
+              </div>
+              <h2 class="font-headline text-2xl font-bold mb-4 text-on-surface dark:text-zinc-100">Penggunaan Informasi</h2>
+              <p class="text-on-surface-variant dark:text-zinc-300 leading-relaxed">
+                Kami mengelola setiap pesan yang Antum kirimkan semata-mata sebagai amanah untuk
+                disampaikan kepada Ustadz yang kompeten di bidangnya.
+                <br /><br />
+                Data pertanyaan tersebut digunakan hanya agar jawaban yang diberikan akurat dan
+                relevan dengan topik yang Antum tanyakan. Karena platform ini tidak meminta
+                identitas pribadi, interaksi ini tetap terjaga kerahasiaannya antara Antum, sistem,
+                dan pengajar.
+              </p>
+            </div>
+          </div>
+
+          <!-- Section 3: Hak Atas Pertanyaan -->
+          <div class="flex flex-col md:flex-row-reverse gap-8 items-start">
+            <div
+              class="flex-shrink-0 w-14 h-14 bg-[#006948]/10 rounded-full flex items-center justify-center text-[#006948]"
+            >
+              <span
+                class="material-symbols-outlined text-3xl"
+                style="font-variation-settings: 'FILL' 1;"
+              >admin_panel_settings</span>
+            </div>
+            <div class="flex-grow">
+              <h2 class="font-headline text-2xl font-bold mb-4 text-on-surface dark:text-zinc-100">Hak Atas Pertanyaan</h2>
+              <p class="text-on-surface-variant dark:text-zinc-300 leading-relaxed">
+                Kami menghormati hak Antum atas data Antum sendiri. Karena sistem kami bersifat
+                anonim, jika Antum ingin menghapus pertanyaan yang telah dikirim, Antum harus
+                menghubungi pengembang secara manual. Data yang telah dihapus tidak dapat dipulihkan
+                kembali demi menjaga integritas privasi sistem kami.
+              </p>
+            </div>
+          </div>
+
+          <!-- Section 4: Cookie & LocalStorage (with Image) -->
+          <div class="bg-surface-container-low dark:bg-zinc-900 rounded-3xl overflow-hidden flex flex-col md:flex-row">
+            <div class="md:w-1/2 h-64 md:h-auto">
+              <img
+                class="w-full h-full object-cover"
+                src="https://ahsan.tv/wp-content/uploads/2026/05/yea.jpg"
+                alt="A soft-focus image of an open book and a digital tablet on a clean wooden surface."
+              />
+            </div>
+            <div class="md:w-1/2 p-8 md:p-10 flex flex-col justify-center">
+              <div
+                class="flex-shrink-0 w-12 h-12 bg-[#006948]/10 rounded-full flex items-center justify-center text-[#006948] mb-6"
+              >
+                <span class="material-symbols-outlined">cookie</span>
+              </div>
+              <h2 class="font-headline text-2xl font-bold mb-4 text-on-surface dark:text-zinc-100">
+                Kebijakan Cookie &amp; LocalStorage
+              </h2>
+              <p class="text-on-surface-variant dark:text-zinc-300 leading-relaxed">
+                Sebagai bentuk ikhtiar kami dalam memberikan pengalaman terbaik, platform ini
+                menggunakan teknologi LocalStorage yang tersimpan sepenuhnya di perangkat Antum
+                sendiri. Data ini digunakan hanya untuk menyimpan Preferensi Tampilan, seperti
+                pengaturan Dark Mode (Mode Gelap) atau riwayat sesi pencarian terakhir Antum.
+                <br /><br />
+                Dengan adanya penyimpanan ini, Antum tidak perlu repot mengatur ulang antarmuka
+                setiap kali kembali berkunjung ke platform ini. Kami tegaskan bahwa data ini
+                bersifat lokal dan tidak dikirimkan ke server kami, sehingga privasi Antum tetap
+                terjaga dengan rapat.
+              </p>
+            </div>
+          </div>
+
+        </div>
+        <!-- End Content Sections -->
+
+        <!-- Closing Box -->
+        <div
+          class="mt-24 bg-[#006948] text-on-primary rounded-3xl p-10 text-center relative overflow-hidden"
+        >
+          <div class="absolute inset-0 opacity-10">
+            <img
+              class="w-full h-full object-cover"
+              data-alt="A minimalist abstract pattern featuring fluid, organic shapes in shades of emerald green and soft mint. The background suggests digital connectivity and flowing information, maintaining a peaceful and professional aesthetic. Subtle glowing lines weave through the composition, symbolizing the secure path of knowledge and communication in a modern spiritual ecosystem."
+              src="https://ahsan.tv/wp-content/uploads/2026/05/ohyeah.webp"
+            />
+          </div>
+          <div class="relative z-10">
+            <div class="bismillah-text text-3xl mb-4">جزاكم الله خيرا</div>
+            <p class="font-medium text-lg mb-8 opacity-90">
+              Terima kasih telah mempercayakan perjalanan hijrah dan belajar Antum bersama Tanya
+              Ustadz.
+            </p>
+            <div class="h-px w-24 bg-white/30 mx-auto mb-8"></div>
+            <p class="text-sm italic opacity-80 max-w-lg mx-auto">
+              "Semoga Allah senantiasa menjaga kita semua dalam ketaatan dan memudahkan langkah kita
+              dalam menuntut ilmu."
+            </p>
+            <p class="mt-6 text-xs font-bold tracking-widest uppercase">AhsanTV Developer Team</p>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer
+      class="bg-white dark:bg-emerald-950 flex flex-col md:flex-row justify-center items-center gap-6 py-8 px-4 w-full relative z-10"
+    >
+      <div class="font-plus-jakarta text-xs text-slate-400 dark:text-slate-500">
+        © 2026 Ahsan TV. All Rights Reserved by Team IT
+      </div>
+    </footer>
+  </div>
+</template>
+
+
+
+<style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.bismillah-text {
+  font-family: 'Amiri', serif;
+}
+
+.glass-nav {
+  backdrop-filter: blur(24px);
+}
+</style>

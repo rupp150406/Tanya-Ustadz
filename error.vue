@@ -46,7 +46,7 @@ const clearError = () => {
           <!-- Error Message -->
           <p class="font-display text-xl md:text-2xl font-bold text-on-surface dark:text-white max-w-md mx-auto leading-tight">
             {{ error?.statusCode === 404 
-              ? 'Maaf, pertanyaan atau halaman yang Anda cari tidak ada.' 
+              ? 'Maaf, pertanyaan atau halaman yang antum cari tidak ada.' 
               : error?.message || 'Terjadi kesalahan yang tidak terduga.' }}
           </p>
 

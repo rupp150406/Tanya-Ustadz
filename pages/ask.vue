@@ -70,7 +70,7 @@ const handleSubmit = async () => {
       category: category.value,
       fingerprint: fp,
     })
-    triggerAlert('Berhasil!', 'Pertanyaan Anda telah terkirim secara anonim.', true)
+    triggerAlert('Berhasil!', 'Pertanyaan antum telah terkirim secara anonim.', true)
     questionText.value = ''
   } catch (err) {
     const errorMsg = err?.data?.message || err?.message || 'Terjadi kesalahan saat mengirim pertanyaan.'
@@ -203,7 +203,7 @@ const handleSubmit = async () => {
               </div>
               <h3 class="font-headline font-bold">Apa yang terjadi setelah ini?</h3>
               <p class="text-sm text-on-surface-variant dark:text-zinc-400 max-w-sm">
-                Pertanyaan Anda akan ditinjau oleh tim admin kami sebelum dijawab oleh Ustadz.
+                Pertanyaan antum akan ditinjau oleh tim admin kami sebelum dijawab oleh Ustadz.
               </p>
             </div>
           </div>

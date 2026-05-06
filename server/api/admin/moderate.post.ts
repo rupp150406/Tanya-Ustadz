@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
   if (!data || data.length === 0) {
     throw createError({ 
       statusCode: 404, 
-      message: "Gagal: Data tidak ditemukan atau Anda tidak punya akses." 
+      message: "Gagal: Data tidak ditemukan atau antum tidak punya akses." 
     });
   }
 
