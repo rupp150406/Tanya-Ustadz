@@ -56,6 +56,11 @@ const user     = useSupabaseUser()
 // mendapat referensi ke objek YANG SAMA — bukan copy.
 // Mutasi di sini langsung reaktif di index.vue, admin/dashboard, dll.
 const globalProfile = useState('user-profile', () => null)
+const { initFCM } = useFCM()
+onMounted(() => {
+  // Trigger permintaan izin notifikasi dan ambil token browser
+  initFCM()
+})
 
 // UUID v4 guard — menolak '', 'undefined', null, non-UUID string
 // Mencegah /profiles?id=eq.undefined → PostgREST 400 / 22P02

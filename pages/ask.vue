@@ -2,12 +2,15 @@
 import UiThemeToggle from '~/components/ui/ThemeToggle.vue'
 const { addQuestion, fetchPublic, pending: isSubmitting } = useQuestions()
 const { fingerprint, getFingerprint } = useFingerprint()
+const { initFCM } = useFCM()
 
 // ─── Theme ────────────────────────────────────────────────────
 const { initTheme } = useTheme()
-onMounted(() => {
+onMounted(async () => {
   initTheme()
   preloadLottie()
+  const fp = await getFingerprint()
+  initFCM('user', fp)
 })
 
 const category = ref('Fikih')

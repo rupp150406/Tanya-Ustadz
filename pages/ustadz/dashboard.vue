@@ -31,6 +31,7 @@ const { initTheme } = useTheme()
 const supabase = useSupabaseClient()
 const user     = useSupabaseUser()
 const router   = useRouter()
+const { initFCM } = useFCM()
 
 const {
   questions,
@@ -151,6 +152,7 @@ watch(user, async (newUser) => { if (newUser?.id && !_initialLoadDone) await for
 
 onMounted(async () => {
   initTheme()
+  initFCM('ustadz')
   try { await forceGetAuthUser() } catch {
     setTimeout(async () => {
       try { await forceGetAuthUser() } catch {

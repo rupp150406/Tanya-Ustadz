@@ -31,6 +31,7 @@ export default defineNuxtConfig({
     // PRIVATE (server only)
     supabaseUrl: process.env.SUPABASE_URL,
     supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    fcmServerKey: process.env.FCM_SERVER_KEY,
 
     // PUBLIC (client)
     public: {

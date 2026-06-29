@@ -31,8 +31,10 @@ interface Tab {
 
 // ─── Theme ────────────────────────────────────────────────────
 const { initTheme } = useTheme()
+const { initFCM } = useFCM()
 onMounted(async () => {
   initTheme()
+  initFCM('admin_it')
   try {
     await forceGetAuthUser()
   } catch (e) {

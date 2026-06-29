@@ -49,11 +49,24 @@ const upvoted = ref(false)
 const localUpvotes = computed(() => (q.value?.upvotes ?? 0) + (upvoted.value ? 1 : 0))
 function toggleUpvote() { upvoted.value = !upvoted.value }
 
-// ─── Avatar Error Handler ───────────────────────────────────
-function handleAvatarError(event) {
-  const img = event.target
-  img.style.display = 'none'
-}
+// ─── Avatar Utilities ──────────────────────────────────────
+const { 
+  getAvatarDisplayState,
+  handleAvatarError,
+  preloadAvatar 
+} = useAvatar()
+
+// Get avatar display state for the answering ustadz
+const ustadzAvatar = computed(() => 
+  getAvatarDisplayState(q.value?.answered_by_profile)
+)
+
+// Preload avatar when question data is available
+watch(() => q.value?.answered_by_profile?.avatar_url, async (avatarUrl) => {
+  if (avatarUrl) {
+    await preloadAvatar(avatarUrl)
+  }
+}, { immediate: true })
 
 // ─── Share Function ─────────────────────────────────────────
 async function handleShare() {
@@ -75,6 +88,16 @@ async function handleShare() {
   }
 }
 
+const router = useRouter()
+
+function navigateToUstadz(id) {
+  if (!id) {
+    console.warn('[Tanya Ustadz] ID Ustadz belum siap atau kosong.')
+    return
+  }
+  // Paksa redirect menggunakan Nuxt router built-in
+  router.push(`/ustadz/${id}`)
+}
 </script>
 
 <template>
@@ -290,31 +313,36 @@ async function handleShare() {
             <div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
             <div class="p-7 md:p-10 pl-8 md:pl-11">
               <!-- Ustadz Header -->
-              <div class="flex flex-col sm:flex-row sm:items-center gap-4 mb-8 pb-7 border-b border-outline-variant/10 dark:border-zinc-800">
-                <div class="w-16 h-16 rounded-2xl shadow-sm shrink-0 overflow-hidden bg-primary/10 flex items-center justify-center">
-                  <!-- Display actual avatar if available, fallback to initial -->
-                  <img 
-                    v-if="q.answered_by_profile?.avatar_url && q.answered_by_profile?.avatar_url.length > 15"
-                    :src="q.answered_by_profile.avatar_url"
-                    :alt="`Avatar ${q.answered_by_profile.full_name}`"
-                    class="w-full h-full object-cover"
-                    @error="handleAvatarError"
-                  />
-                  <span v-else class="text-white font-bold text-2xl">
-                    {{ q.answered_by_profile?.full_name?.charAt(0)?.toUpperCase() ?? 'U' }}
-                  </span>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <h3 class="font-headline font-bold text-xl text-primary leading-tight">
-                    Dijawab oleh Ustadz {{ q.answered_by_profile?.full_name ?? 'Ustadz Tidak Diketahui' }}
-                  </h3>
-                  <p class="text-sm text-outline dark:text-zinc-500 mt-0.5">Ustadz Ahli</p>
-                </div>
-                <div class="shrink-0 flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 px-3 py-1.5 rounded-lg self-start sm:self-center">
-                  <span class="material-symbols-outlined text-primary" style="font-size:15px; font-variation-settings:'FILL' 1">verified</span>
-                  <span class="text-[10px] font-extrabold text-primary uppercase tracking-widest">Terverifikasi</span>
-                </div>
-              </div>
+<div 
+  :class="{ 'opacity-60 cursor-not-allowed': !q?.answered_by_profile?.id }"
+  @click="navigateToUstadz(q?.answered_by_profile?.id)"
+  class="flex flex-col sm:flex-row sm:items-center gap-4 mb-8 pb-7 border-b border-outline-variant/10 dark:border-zinc-800 hover:bg-surface-container-low/30 dark:hover:bg-zinc-800/30 transition-colors duration-200 rounded-2xl p-4 -mx-4 cursor-pointer group"
+>
+  <div class="w-16 h-16 rounded-2xl shadow-sm shrink-0 overflow-hidden bg-primary/10 flex items-center justify-center group-hover:ring-2 group-hover:ring-primary/30 transition-all">
+    <img 
+      v-if="q?.answered_by_profile?.avatar_url && q?.answered_by_profile?.avatar_url.length > 15"
+      :src="q.answered_by_profile.avatar_url"
+      :alt="`Avatar ${q.answered_by_profile?.full_name}`"
+      class="w-full h-full object-cover"
+      @error="(e) => handleAvatarError(e, ustadzAvatar.avatarUrl)"
+    />
+    <span v-else class="text-white font-bold text-2xl">
+      {{ ustadzAvatar.initial }}
+    </span>
+  </div>
+
+  <div class="flex-1 min-w-0">
+    <h3 class="font-headline font-bold text-xl text-primary leading-tight group-hover:text-primary-fixed transition-colors">
+      Dijawab oleh Ustadz {{ q?.answered_by_profile?.full_name ?? 'Ustadz Tidak Diketahui' }}
+    </h3>
+    <p class="text-sm text-outline dark:text-zinc-500 mt-0.5 group-hover:text-on-surface-variant transition-colors">Ustadz Ahli</p>
+  </div>
+
+  <div class="shrink-0 flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 px-3 py-1.5 rounded-lg self-start sm:self-center group-hover:bg-primary/10 group-hover:border-primary/30 transition-colors">
+    <span class="material-symbols-outlined text-primary group-hover:text-primary-fixed transition-colors" style="font-size:15px; font-variation-settings:'FILL' 1">verified</span>
+    <span class="text-[10px] font-extrabold text-primary uppercase tracking-widest group-hover:text-primary-fixed transition-colors">Terverifikasi</span>
+  </div>
+</div>
 
               <!-- Answer content -->
               <div class="prose prose-sm sm:prose-base max-w-none text-on-surface dark:text-zinc-200 font-body leading-relaxed text-lg
