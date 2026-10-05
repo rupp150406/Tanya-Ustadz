@@ -1,24 +1,36 @@
 <script setup>
+import { ref } from 'vue'
 import UiThemeToggle from '~/components/ui/ThemeToggle.vue'
+import GradientWaves from '~/components/ui/GradientWaves.vue'
+import SwipeToast from '~/components/ui/SwipeToast.vue'
 const { addQuestion, fetchPublic, pending: isSubmitting } = useQuestions()
 const { fingerprint, getFingerprint } = useFingerprint()
+const { connect, checkConnection, isConnected } = useTelegram()
 const { initFCM } = useFCM()
 
 // ─── Theme ────────────────────────────────────────────────────
-const { initTheme } = useTheme()
 onMounted(async () => {
   initTheme()
   preloadLottie()
   const fp = await getFingerprint()
-  initFCM('user', fp)
+  if (fp) checkConnection(fp)
+  // Delay the toast so the slide-in animation is visible
+  setTimeout(() => { open.value = true }, 1200)
 })
+
+const handleTelegramConnect = async () => {
+  const fp = await getFingerprint()
+  if (fp) await connect(fp)
+}
+
+const open = ref(false)
 
 const category = ref('Fikih')
 const questionText = ref('')
 const maxChars = 500
 
 const showAlert = ref(false)
-const alertTitle = ref('Warning!')
+const alertTitle = ref('Warning!')  
 const alertMessage = ref('')
 const isSuccess = ref(false)
 
@@ -83,64 +95,89 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <div class="bg-background dark:bg-zinc-950 text-on-surface dark:text-zinc-100 font-body antialiased min-h-screen transition-colors duration-300">
-    <!-- Custom Alert Overlay -->
-    <div
-      class="alert-overlay"
-      :class="{ 'active': showAlert }"
-      @click.self="closeAlert"
-    >
-      <div class="alert-card shadow-2xl dark:bg-zinc-900">
-        <div class="alert-header" :class="isSuccess ? 'bg-emerald-600' : 'bg-[#004d36]'">
-          <div class="lottie-container">
-            <iframe
-              v-show="lottieReady"
-              :src="currentLottieSrc"
-              style="border: none; width: 100%; height: 100%; pointer-events: none;"
-            ></iframe>
-          </div>
-        </div>
-        <div class="alert-content dark:bg-zinc-900">
-          <h2 class="alert-title dark:text-zinc-100">{{ alertTitle }}</h2>
-          <p class="alert-message dark:text-zinc-400">{{ alertMessage }}</p>
-          <button
-            @click="closeAlert"
-            class="alert-button text-white transition-transform active:scale-95"
-            :class="isSuccess ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-[#004d36] hover:bg-[#003626]'"
-          >
-            {{ isSuccess ? 'Kembali ke Home' : 'Tutup' }}
-          </button>
-        </div>
-      </div>
+  <div class="relative bg-background dark:bg-zinc-950 text-on-surface dark:text-zinc-100 font-body antialiased min-h-screen transition-colors duration-300 overflow-x-hidden">
+    <!-- Interactive 3D Gradient Waves Background -->
+    <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+      <GradientWaves
+        horizonColor="#10B981"
+        waveColor="#84CC16"
+        crestColor="#FFFFFF"
+        :speed="0.4"
+        :amplitude="2.5"
+        :waveScale="0.6"
+        :waveRatio="0.9"
+        :swell="35"
+        :turbulence="20"
+        :tilt="1.11"
+        :zoom="1.0"
+        :height="5.5"
+        :fogDepth="15"
+        detail="medium"
+        :brightness="1.0"
+        :opacity="1.0"
+        :mouseInteraction="true"
+        :parallaxStrength="0.5"
+        :grain="true"
+        :grainIntensity="0.05"
+      />
     </div>
 
-    <header class="bg-surface/70 dark:bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 shadow-sm border-b border-transparent dark:border-zinc-800/50">
-      <div class="flex justify-between items-center w-full px-6 py-3 max-w-screen-2xl mx-auto">
-        <div class="flex items-center gap-4">
-          <NuxtLink to="/" class="text-2xl font-bold tracking-tighter text-emerald-800 dark:text-emerald-400">
-            Tanya Ustadz
-          </NuxtLink>
+    <!-- Foreground Content Wrapper -->
+    <div class="relative z-10 flex flex-col min-h-screen">
+      <!-- Custom Alert Overlay -->
+      <div
+        class="alert-overlay"
+        :class="{ 'active': showAlert }"
+        @click.self="closeAlert"
+      >
+        <div class="alert-card shadow-2xl dark:bg-zinc-900">
+          <div class="alert-header" :class="isSuccess ? 'bg-emerald-600' : 'bg-[#004d36]'">
+            <div class="lottie-container">
+              <iframe
+                v-show="lottieReady"
+                :src="currentLottieSrc"
+                style="border: none; width: 100%; height: 100%; pointer-events: none;"
+              ></iframe>
+            </div>
+          </div>
+          <div class="alert-content dark:bg-zinc-900">
+            <h2 class="alert-title dark:text-zinc-100">{{ alertTitle }}</h2>
+            <p class="alert-message dark:text-zinc-400">{{ alertMessage }}</p>
+            <button
+              @click="closeAlert"
+              class="alert-button text-white transition-transform active:scale-95"
+              :class="isSuccess ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-[#004d36] hover:bg-[#003626]'"
+            >
+              {{ isSuccess ? 'Kembali ke Home' : 'Tutup' }}
+            </button>
+          </div>
         </div>
-        <!-- Theme Toggle -->
-        <UiThemeToggle />
       </div>
-    </header>
 
-    <main class="flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden text-on-surface dark:text-zinc-100">
-      <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/5 blur-[120px]"></div>
-      <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-secondary/5 blur-[120px]"></div>
-
-      <div class="w-full max-w-2xl z-10">
-        <div class="text-center mb-10 space-y-3">
-          <h1 class="font-headline font-extrabold text-4xl md:text-5xl tracking-tight">
-            Sampaikan <span class="text-primary">Pertanyaanmu</span>
-          </h1>
-          <p class="text-on-surface-variant dark:text-zinc-400 text-lg max-w-md mx-auto leading-relaxed">
-            Ajukan pertanyaan seputar hukum Islam kepada para asatidzah yang kompeten dengan penuh ketenangan.
-          </p>
+      <header class="bg-surface/70 dark:bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 shadow-sm border-b border-transparent dark:border-zinc-800/50">
+        <div class="flex justify-between items-center w-full px-6 py-3 max-w-screen-2xl mx-auto">
+          <div class="flex items-center gap-4">
+            <NuxtLink to="/" class="text-2xl font-bold tracking-tighter text-emerald-800 dark:text-emerald-400">
+              Tanya Ustadz
+            </NuxtLink>
+          </div>
+          <!-- Theme Toggle -->
+          <UiThemeToggle />
         </div>
+      </header>
 
-        <div class="bg-surface-container-lowest dark:bg-zinc-900 rounded-[2rem] shadow-[0px_12px_32px_rgba(20,28,43,0.06)] dark:shadow-[0px_12px_32px_rgba(0,0,0,0.4)] overflow-hidden p-8 md:p-12 border border-transparent dark:border-zinc-800">
+      <main class="flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden text-on-surface dark:text-zinc-100 flex-1">
+        <div class="w-full max-w-2xl z-10">
+          <div class="text-center mb-10 space-y-3">
+            <h1 class="font-headline font-extrabold text-4xl md:text-5xl tracking-tight">
+              Sampaikan <span class="text-primary">Pertanyaanmu</span>
+            </h1>
+            <p class="text-on-surface-variant dark:text-zinc-400 text-lg max-w-md mx-auto leading-relaxed">
+              Ajukan pertanyaan seputar hukum Islam kepada para asatidzah yang kompeten dengan penuh ketenangan.
+            </p>
+          </div>
+
+          <div class="bg-surface-container-lowest/85 dark:bg-zinc-900/85 backdrop-blur-md rounded-[2rem] shadow-[0px_12px_32px_rgba(20,28,43,0.06)] dark:shadow-[0px_12px_32px_rgba(0,0,0,0.4)] overflow-hidden p-8 md:p-12 border border-outline-variant/10 dark:border-zinc-800">
           <div class="mb-8 flex items-center gap-3 p-4 rounded-xl bg-tertiary-fixed dark:bg-amber-900/20 text-on-tertiary-fixed-variant dark:text-amber-300">
             <span class="material-symbols-outlined text-tertiary dark:text-amber-400">info</span>
             <p class="text-sm font-medium">Batas bertanya: 5 pertanyaan setiap 5 menit untuk menjaga kualitas layanan.</p>
@@ -161,7 +198,7 @@ const handleSubmit = async () => {
                     class="sr-only peer"
                     :disabled="isSubmitting"
                   />
-                  <div class="px-3 py-4 rounded-2xl bg-surface-container-low dark:bg-zinc-800 text-center transition-all duration-200 peer-checked:bg-primary peer-checked:text-on-primary hover:bg-surface-container-high dark:hover:bg-zinc-700 group-active:scale-95 flex flex-col items-center justify-center peer-disabled:opacity-50">
+                  <div class="px-3 py-4 rounded-2xl bg-surface-container-low/80 dark:bg-zinc-800/80 backdrop-blur-sm border border-outline-variant/10 dark:border-zinc-700/50 text-center transition-all duration-200 peer-checked:bg-primary peer-checked:text-on-primary hover:bg-surface-container-high dark:hover:bg-zinc-700 group-active:scale-95 flex flex-col items-center justify-center peer-disabled:opacity-50">
                     <span class="material-symbols-outlined block mb-1">{{ cat.icon }}</span>
                     <span class="text-xs font-bold">{{ cat.label }}</span>
                   </div>
@@ -179,7 +216,7 @@ const handleSubmit = async () => {
                   :maxlength="maxChars"
                   :disabled="isSubmitting"
                   rows="4"
-                  class="w-full bg-surface-container-low dark:bg-zinc-800 border-none rounded-3xl p-6 focus:ring-2 focus:ring-primary/20 text-on-surface dark:text-zinc-100 placeholder:text-outline/60 dark:placeholder:text-zinc-500 resize-none disabled:opacity-50 transition-all"
+                  class="w-full bg-surface-container-low/80 dark:bg-zinc-800/80 backdrop-blur-sm border border-outline-variant/20 dark:border-zinc-700/50 rounded-3xl p-6 focus:ring-2 focus:ring-primary/20 text-on-surface dark:text-zinc-100 placeholder:text-outline/60 dark:placeholder:text-zinc-500 resize-none disabled:opacity-50 transition-all"
                   placeholder="Tuliskan pertanyaan Anda..."
                 ></textarea>
                 <div class="absolute bottom-4 right-6 text-xs font-medium text-outline dark:text-zinc-500">
@@ -213,15 +250,12 @@ const handleSubmit = async () => {
         </div>
       </div>
 
-      <div class="fixed top-20 right-[-10%] w-96 h-96 opacity-10 pointer-events-none">
-        <img src="https://ahsan.tv/wp-content/uploads/2026/05/unnamed.webp" alt="" class="w-full h-full text-primary" />
-      </div>
                   <footer class="mt-20 pt-10 pb-8 border-t border-outline-variant/15 dark:border-zinc-800 text-center"> 
-          <p class="max-w-md mx-auto italic text-on-surface-variant/50 dark:text-zinc-600 font-body text-sm mb-6 px-4 leading-relaxed">
+          <p class="max-w-md mx-auto italic text-on-surface-variant/50 dark:text-white font-body text-sm mb-6 px-4 leading-relaxed">
             "Sesungguhnya amalan yang paling dicintai Allah adalah amalan yang berkelanjutan (istiqomah) walaupun sedikit."
-            <span class="not-italic font-semibold text-outline dark:text-zinc-500">(HR. Muslim)</span>
+            <span class="not-italic font-semibold text-outline dark:text-white">(HR. Muslim)</span>
           </p>
-          <div class="flex flex-col sm:flex-row justify-center items-center mt-10 gap-10 text-outline dark:text-zinc-600 text-[10px] uppercase tracking-widest font-bold">
+          <div class="flex flex-col sm:flex-row justify-center items-center mt-10 gap-10 text-outline dark:text-white text-[10px] uppercase tracking-widest font-bold">
             <p>© 2026 Ahsan TV. All Rights Reserved by Team IT</p>
             <div class="flex gap-5">
               <NuxtLink to="/kebijakan" class="hover:text-primary transition-colors">Kebijakan Privasi</NuxtLink>
@@ -231,7 +265,54 @@ const handleSubmit = async () => {
             </div>
           </div>
         </footer>
+        <!-- Telegram Connect – SwipeToast -->
+        <SwipeToast
+          v-if="!isConnected"
+          :open="open"
+          title="Aktifkan Notifikasi Jawaban"
+          description="Hubungkan Telegram untuk tahu saat Ustadz menjawab, tanpa daftar akun."
+          actionLabel="Hubungkan"
+          background="#18181b"
+          color="#f5f5f5"
+          fuseColor="#229ED9"
+          :width="380"
+          :radius="14"
+          :slideMs="400"
+          :settleBounce="0.2"
+          :swipeDistance="40"
+          :duration="8000"
+          fuse="bottom"
+          :pauseOnHover="true"
+          :closeButton="true"
+          @action="handleTelegramConnect"
+          @close="open = false"
+        >
+          <template #icon>
+            <span style="font-size:16px;line-height:1">✈️</span>
+          </template>
+        </SwipeToast>
+
+        <!-- Connected state – SwipeToast -->
+        <SwipeToast
+          v-else
+          :open="open"
+          title="Terhubung ke Telegram ✅"
+          description="Antum akan dapat notifikasi saat Ustadz menjawab."
+          background="#052e16"
+          color="#bbf7d0"
+          fuseColor="#4ade80"
+          :width="360"
+          :radius="14"
+          :slideMs="400"
+          :duration="4000"
+          fuse="bottom"
+          :pauseOnHover="true"
+          :closeButton="true"
+          @close="open = false"
+        />
     </main>
+
+    </div>
   </div>
 </template>
 

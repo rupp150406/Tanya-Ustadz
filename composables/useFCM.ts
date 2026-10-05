@@ -39,6 +39,8 @@ const waitForServiceWorker = (registration: ServiceWorkerRegistration): Promise<
   })
 }
 
+let _inFlight: Promise<void> | null = null
+
 export const useFCM = () => {
   const fcmToken = ref<string | null>(null)
   let messaging: Messaging | null = null
@@ -46,63 +48,72 @@ export const useFCM = () => {
   const initFCM = async (role: 'user' | 'admin_it' | 'ustadz', fingerprint?: string) => {
     if (import.meta.server) return
 
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) return
+    if (_inFlight) return _inFlight
 
-    try {
-      messaging = getMessaging(app)
+    _inFlight = (async () => {
+      if (!('Notification' in window) || !('serviceWorker' in navigator)) return
 
-      const permission = await Notification.requestPermission()
-      if (permission !== 'granted') return
+      try {
+        messaging = getMessaging(app)
 
-      let registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-        scope: '/firebase-cloud-messaging-push-scope'
-      })
+        const permission = await Notification.requestPermission()
+        if (permission !== 'granted') return
 
-      registration = await waitForServiceWorker(registration)
+        let registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+          scope: '/firebase-cloud-messaging-push-scope'
+        })
 
-      const existingSubscription = await registration.pushManager.getSubscription()
-      if (existingSubscription) {
-        await existingSubscription.unsubscribe()
-      }
+        registration = await waitForServiceWorker(registration)
 
-      const token = await getToken(messaging, {
-        vapidKey: 'BCp3f5rzfIB7dEd73XMn1BTrrRwSs54lAqhrbW_tJWMTTmIJYx7OPrO2rzy9H85otunvs7qMGJLo-1rLj-yEAmQ',
-        serviceWorkerRegistration: registration
-      })
+        const existingSubscription = await registration.pushManager.getSubscription()
+        if (existingSubscription) {
+          await existingSubscription.unsubscribe()
+        }
 
-      if (!token) return
+        const token = await getToken(messaging, {
+          vapidKey: 'BCp3f5rzfIB7dEd73XMn1BTrrRwSs54lAqhrbW_tJWMTTmIJYx7OPrO2rzy9H85otunvs7qMGJLo-1rLj-yEAmQ',
+          serviceWorkerRegistration: registration
+        })
 
-      fcmToken.value = token
+        if (!token) return
 
-      // Simpan token ke Supabase berdasarkan role
-      const supabase = useSupabaseClient()
+        fcmToken.value = token
 
-      if (role === 'user' && fingerprint) {
-        await supabase
-          .from('fcm_tokens')
-          .upsert(
-            { role: 'user', fingerprint, token, updated_at: new Date().toISOString() },
-            { onConflict: 'token' }
-          )
-      } else if (role === 'admin_it' || role === 'ustadz') {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          await supabase
+        const supabase = useSupabaseClient()
+
+        if (role === 'user' && fingerprint) {
+          const { error } = await supabase
             .from('fcm_tokens')
             .upsert(
-              { role, profile_id: user.id, token, updated_at: new Date().toISOString() },
-              { onConflict: 'token' }
+              { role: 'user', fingerprint, token, updated_at: new Date().toISOString() } as never,
+              { onConflict: 'fingerprint' }
             )
+          if (error) console.error('[FCM] Upsert error (user):', error.message)
+        } else if (role === 'admin_it' || role === 'ustadz') {
+          const { data: { user } } = await supabase.auth.getUser()
+          if (user) {
+            const { error } = await supabase
+              .from('fcm_tokens')
+              .upsert(
+                { role, profile_id: user.id, token, updated_at: new Date().toISOString() } as never,
+                { onConflict: 'profile_id' }
+              )
+            if (error) console.error('[FCM] Upsert error (staff):', error.message)
+          }
         }
+
+        onMessage(messaging, (payload) => {
+          // TODO: replace with toast notification
+        })
+
+      } catch (err) {
+        console.error('[FCM] Error:', err)
+      } finally {
+        _inFlight = null
       }
+    })()
 
-      onMessage(messaging, (payload) => {
-        // TODO: replace with toast notification
-      })
-
-    } catch {
-      // silent fail
-    }
+    return _inFlight
   }
 
   return { fcmToken, initFCM }

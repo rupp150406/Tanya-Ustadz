@@ -1,4 +1,3 @@
-// server/api/ustadz/answer.post.ts
 import { defineEventHandler, readBody, createError } from 'h3'
 import { serverSupabaseClient } from '#supabase/server'
 
@@ -37,17 +36,10 @@ export default defineEventHandler(async (event) => {
   const questionId: string = (body?.question_id ?? '').trim()
   const rawAnswer: string = (body?.answer ?? '').trim()
 
-  if (!questionId) {
-    throw createError({ statusCode: 400, message: 'question_id wajib diisi.' })
-  }
-  if (!rawAnswer) {
-    throw createError({ statusCode: 400, message: 'Jawaban tidak boleh kosong.' })
-  }
-  if (rawAnswer.length > 2000) {
-    throw createError({ statusCode: 400, message: 'Jawaban maksimal 2000 karakter.' })
-  }
+  if (!questionId) throw createError({ statusCode: 400, message: 'question_id wajib diisi.' })
+  if (!rawAnswer) throw createError({ statusCode: 400, message: 'Jawaban tidak boleh kosong.' })
+  if (rawAnswer.length > 2000) throw createError({ statusCode: 400, message: 'Jawaban maksimal 2000 karakter.' })
 
-  // Ambil question + fingerprint untuk notifikasi ke user
   const { data: question, error: fetchError } = await supabase
     .from('questions')
     .select('id, status, fingerprint')
@@ -84,22 +76,17 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, message: 'Gagal menyimpan jawaban.' })
   }
 
-  // Notify user via fingerprint kalau ada
+  // Notify user via Telegram kalau fingerprint ada dan sudah connect
   if (question.fingerprint) {
     await $fetch('/api/notify', {
       method: 'POST',
       body: {
         role: 'user',
-        title: 'Pertanyaanmu Telah Dijawab!',
-        body: 'Ustadz telah menjawab pertanyaan yang kamu kirimkan. Lihat sekarang.',
         fingerprint: question.fingerprint,
+        message: '🕌 *Pertanyaanmu Telah Dijawab!*\n\nUstadz telah menjawab pertanyaan yang kamu kirimkan.\n\n👉 Buka forum untuk membaca jawabannya.'
       }
     }).catch(() => {})
   }
 
-  return {
-    success: true,
-    question_id: questionId,
-    status: 'answered',
-  }
+  return { success: true, question_id: questionId, status: 'answered' }
 })

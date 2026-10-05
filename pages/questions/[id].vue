@@ -2,6 +2,7 @@
 import { computed, onMounted } from 'vue'
 import { useQuestions } from '~/composables/useQuestions'
 import UiThemeToggle from '~/components/ui/ThemeToggle.vue'
+import GradientWaves from '~/components/ui/GradientWaves.vue'
 // import UiUpvoteButton from '~/components/ui/UpvoteButton.vue' // DISABLED
 
 // ─── Theme ────────────────────────────────────────────────────
@@ -101,10 +102,38 @@ function navigateToUstadz(id) {
 </script>
 
 <template>
-  <div class="min-h-screen bg-surface dark:bg-zinc-950 font-body text-on-surface dark:text-zinc-100 antialiased transition-colors duration-300">
+  <div class="relative min-h-screen bg-surface dark:bg-zinc-950 font-body text-on-surface dark:text-zinc-100 antialiased transition-colors duration-300 overflow-x-hidden">
 
-    <!-- ── Fixed Header ──────────────────────────────────── -->
-    <header class="fixed top-0 w-full z-50 bg-surface/80 dark:bg-zinc-950/80 backdrop-blur-xl border-b border-outline-variant/10 dark:border-zinc-800 transition-colors duration-300">
+    <!-- Interactive 3D Gradient Waves Background -->
+    <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+      <GradientWaves
+        horizonColor="#10B981"
+        waveColor="#84CC16"
+        crestColor="#FFFFFF"
+        :speed="0.4"
+        :amplitude="2.5"
+        :waveScale="0.6"
+        :waveRatio="0.9"
+        :swell="35"
+        :turbulence="20"
+        :tilt="1.11"
+        :zoom="1.0"
+        :height="5.5"
+        :fogDepth="15"
+        detail="medium"
+        :brightness="1.0"
+        :opacity="1.0"
+        :mouseInteraction="true"
+        :parallaxStrength="0.5"
+        :grain="true"
+        :grainIntensity="0.05"
+      />
+    </div>
+
+    <!-- Foreground Content Wrapper -->
+    <div class="relative z-10 flex flex-col min-h-screen">
+      <!-- ── Fixed Header ──────────────────────────────────── -->
+      <header class="fixed top-0 w-full z-50 bg-surface/80 dark:bg-zinc-950/80 backdrop-blur-xl border-b border-outline-variant/10 dark:border-zinc-800 transition-colors duration-300">
       <div class="flex items-center gap-3 px-4 sm:px-6 py-3.5 max-w-3xl mx-auto">
         <NuxtLink to="/"
           class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-container dark:hover:bg-zinc-800 transition-colors active:scale-90 duration-150 shrink-0">
@@ -230,7 +259,7 @@ function navigateToUstadz(id) {
 
         <!-- [1] PENDING -->
         <section v-if="q.status === 'pending'">
-          <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200/70 dark:border-amber-800/50 rounded-3xl p-8 md:p-10 relative overflow-hidden">
+          <div class="bg-amber-50/90 dark:bg-amber-900/20 backdrop-blur-md border border-amber-200/70 dark:border-amber-800/50 rounded-3xl p-8 md:p-10 relative overflow-hidden">
             <div class="absolute -right-6 -top-6 opacity-[0.07] pointer-events-none">
               <span class="material-symbols-outlined text-amber-600" style="font-size:160px">shield_person</span>
             </div>
@@ -274,7 +303,7 @@ function navigateToUstadz(id) {
 
         <!-- [2] VERIFIED -->
         <section v-else-if="q.status === 'verified'">
-          <div class="bg-surface-container-low dark:bg-zinc-900 border border-white/60 dark:border-zinc-800 rounded-3xl p-8 md:p-10 relative overflow-hidden">
+          <div class="bg-surface-container-low/90 dark:bg-zinc-900/80 backdrop-blur-md border border-white/60 dark:border-zinc-800 rounded-3xl p-8 md:p-10 relative overflow-hidden">
             <div class="absolute -right-8 -top-8 opacity-[0.05] pointer-events-none">
               <span class="material-symbols-outlined" style="font-size:160px">mosque</span>
             </div>
@@ -308,7 +337,7 @@ function navigateToUstadz(id) {
 
         <!-- [3] ANSWERED -->
         <section v-else-if="q.status === 'answered'">
-          <article class="relative bg-surface-container-lowest dark:bg-zinc-900 rounded-3xl overflow-hidden
+          <article class="relative bg-surface-container-lowest/85 dark:bg-zinc-900/85 backdrop-blur-md rounded-3xl overflow-hidden
                           shadow-[0px_16px_48px_rgba(20,28,43,0.08)] dark:shadow-[0px_16px_48px_rgba(0,0,0,0.4)] border border-outline-variant/10 dark:border-zinc-800">
             <div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
             <div class="p-7 md:p-10 pl-8 md:pl-11">
@@ -366,11 +395,11 @@ function navigateToUstadz(id) {
 
         <!-- FOOTER -->
         <footer class="mt-20 pt-10 border-t border-outline-variant/15 dark:border-zinc-800 text-center">
-          <p class="max-w-md mx-auto italic text-on-surface-variant/50 dark:text-zinc-600 font-body text-sm mb-6 px-4 leading-relaxed">
+          <p class="max-w-md mx-auto italic text-on-surface-variant/50 dark:text-white font-body text-sm mb-6 px-4 leading-relaxed">
             "Sesungguhnya amalan yang paling dicintai Allah adalah amalan yang berkelanjutan (istiqomah) walaupun sedikit."
-            <span class="not-italic font-semibold text-outline dark:text-zinc-500">(HR. Muslim)</span>
+            <span class="not-italic font-semibold text-outline dark:text-white">(HR. Muslim)</span>
           </p>
-          <div class="flex flex-col sm:flex-row justify-between items-center gap-3 text-outline dark:text-zinc-600 text-[10px] uppercase tracking-widest font-bold">
+          <div class="flex flex-col sm:flex-row justify-between items-center gap-3 text-outline dark:text-white text-[10px] uppercase tracking-widest font-bold">
             <p>© 2026 Ahsan TV. All Rights Reserved by Team IT</p>
             <div class="flex gap-5">
               <NuxtLink to="/kebijakan" class="hover:text-primary transition-colors">Kebijakan Privasi</NuxtLink>
@@ -383,23 +412,7 @@ function navigateToUstadz(id) {
 
       </template>
     </main>
-
-    <!-- Ambient Background -->
-    <div class="fixed inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden="true">
-      <div class="absolute top-[-15%] right-[-10%] w-[55%] h-[55%] rounded-full blur-[130px] transition-colors duration-700"
-        :class="{
-          'bg-amber-500/5': q?.status === 'pending',
-          'bg-primary/5':   q?.status === 'verified' || q?.status === 'answered',
-        }">
-      </div>
-      <div class="absolute bottom-[-10%] left-[-10%] w-[45%] h-[45%] rounded-full blur-[110px] transition-colors duration-700"
-        :class="{
-          'bg-amber-300/5':            q?.status === 'pending',
-          'bg-secondary-container/10 dark:bg-primary/5': q?.status !== 'pending',
-        }">
-      </div>
     </div>
-
   </div>
 </template>
 

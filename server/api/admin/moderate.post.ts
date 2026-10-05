@@ -1,4 +1,3 @@
-// server/api/admin/moderate.post.ts
 import { defineEventHandler, readBody, createError } from 'h3'
 import { serverSupabaseClient } from '#supabase/server'
 
@@ -30,16 +29,14 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Notify ustadz hanya kalau pertanyaan di-approve (bukan rejected)
   if (action === 'verified') {
     await $fetch('/api/notify', {
       method: 'POST',
       body: {
         role: 'ustadz',
-        title: 'Pertanyaan Baru Siap Dijawab',
-        body: 'Ada pertanyaan yang telah diverifikasi dan menunggu jawaban antum.',
+        message: '📋 *Pertanyaan Baru Siap Dijawab*\n\nAda pertanyaan yang telah diverifikasi admin dan menunggu jawaban antum.\n\n👉 Buka dashboard ustadz untuk menjawab.'
       }
-    }).catch(() => {}) // non-blocking, jangan gagalkan request utama
+    }).catch(() => {})
   }
 
   return { success: true, message: `Status berhasil diubah ke ${action}` }

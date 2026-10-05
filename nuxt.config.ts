@@ -27,19 +27,19 @@ export default defineNuxtConfig({
   // --- RUNTIME CONFIG ---
   // Public: exposed to client
   // Private: server-only (never sent to browser)
-  runtimeConfig: {
-    // PRIVATE (server only)
+// nuxt.config.ts runtimeConfig
+runtimeConfig: {
+  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
+  telegramWebhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET,
+  telegramBotUsername: process.env.TELEGRAM_BOT_USERNAME,
+  public: {
     supabaseUrl: process.env.SUPABASE_URL,
-    supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-    fcmServerKey: process.env.FCM_SERVER_KEY,
+    supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+    adminGatePassword: process.env.ADMIN_GATE_PASSWORD
+  }
+},
 
-    // PUBLIC (client)
-    public: {
-      supabaseUrl: process.env.SUPABASE_URL,
-      supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
-      adminGatePassword: process.env.ADMIN_GATE_PASSWORD
-    },
-  },
   
 
   // --- SEO / HEAD ---
@@ -87,6 +87,12 @@ export default defineNuxtConfig({
   components: [
     { path: '~/components', pathPrefix: false },
   ],
+
+  vite: {
+    server: {
+      allowedHosts: true 
+    }
+  },
 
   // --- ERROR HANDLING ---
   // Custom error page automatically detected from error.vue in root directory
