@@ -273,7 +273,17 @@ const getStatusLabel = (s) =>
             <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
           </div>
           <div class="relative z-10">
-            <p class="text-primary-fixed text-[12px] font-extrabold tracking-[0.2em] mb-2 uppercase">Tanya Ustadz Eksklusif</p>
+            <p class="text-primary-fixed text-[12px] font-extrabold tracking-[0.2em] mb-2 uppercase"><UiShinyText
+                text="Tanya Ustadz Eksklusif"
+                :speed="2"
+                :delay="0"
+                color="#059669"
+                shine-color="#00FF7F"
+                :spread="120"
+                direction="left"
+                :yoyo="false"
+                :pause-on-hover="false"
+              /></p>
             <h2 class="font-headline text-white text-2xl font-extrabold leading-tight">Mencari Ketenangan Melalui Ilmu Syar'i</h2>
           </div>
         </div>
@@ -379,8 +389,8 @@ const getStatusLabel = (s) =>
           </div>
 
           <div v-else class="text-center py-20">
-            <span class="material-symbols-outlined text-6xl text-outline/30 mb-4 animate-pulse">inbox</span>
-            <p class="text-on-surface-variant dark:text-zinc-500 font-bold">Belum ada pertanyaan ditemukan.</p>
+            <span class="material-symbols-outlined text-6xl text-outline/30 mb-4 animate-pulse text-white">inbox</span>
+            <p class="text-on-surface-variant dark:text-white font-bold">Belum ada pertanyaan ditemukan.</p>
           </div>
         </div>
       </div>

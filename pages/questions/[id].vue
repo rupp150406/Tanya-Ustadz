@@ -3,6 +3,7 @@ import { computed, onMounted } from 'vue'
 import { useQuestions } from '~/composables/useQuestions'
 import UiThemeToggle from '~/components/ui/ThemeToggle.vue'
 import GradientWaves from '~/components/ui/GradientWaves.vue'
+import UiShinyText from '~/components/ui/ShinyText.vue'
 // import UiUpvoteButton from '~/components/ui/UpvoteButton.vue' // DISABLED
 
 // ─── Theme ────────────────────────────────────────────────────
@@ -140,9 +141,19 @@ function navigateToUstadz(id) {
           <span class="material-symbols-outlined text-on-surface dark:text-zinc-300" style="font-size:20px">arrow_back</span>
         </NuxtLink>
 
-        <h1 class="text-base font-extrabold tracking-tight text-emerald-900 dark:text-emerald-400 font-headline flex-1 truncate">
-          Tanya Ustadz
-        </h1>
+        <NuxtLink to="/" class="text-base font-extrabold tracking-tight text-emerald-900 dark:text-emerald-400 font-headline flex-1 truncate">
+              <UiShinyText
+                text="Tanya Ustadz"
+                :speed="2"
+                :delay="0"
+                color="#059669"
+                shine-color="#00FF7F"
+                :spread="120"
+                direction="left"
+                :yoyo="false"
+                :pause-on-hover="false"
+              />
+            </NuxtLink>
 
         <!-- Theme Toggle -->
         <UiThemeToggle />
@@ -316,7 +327,17 @@ function navigateToUstadz(id) {
               </h4>
               <p class="text-on-surface-variant dark:text-zinc-400 max-w-sm mx-auto leading-relaxed text-sm mb-8">
                 Pertanyaan antum telah
-                <span class="text-primary font-bold">Terverifikasi</span>
+                <UiShinyText
+                  text="Terverifikasi"
+                  :speed="2"
+                  :delay="0"
+                  color="#059669"
+                  shine-color="#00FF7F"
+                :spread="120"
+                direction="left"
+                :yoyo="false"
+                :pause-on-hover="false"
+              />
                 oleh tim admin kami dan saat ini berada dalam antrean untuk dijawab oleh Ustadz pilihan.
               </p>
               <div class="grid grid-cols-3 gap-3 w-full">
