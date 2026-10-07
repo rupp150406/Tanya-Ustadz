@@ -4,6 +4,7 @@ import { useFingerprint } from '~/composables/useFingerprint'
 import UiThemeToggle from '~/components/ui/ThemeToggle.vue'
 import GradientWaves from '~/components/ui/GradientWaves.vue'
 import UiShinyText from '~/components/ui/ShinyText.vue'
+import AnimatedContent from '~/components/ui/AnimatedContent.vue'
 // import UiUpvoteButton from '~/components/ui/UpvoteButton.vue' // DISABLED
 
 // ─────────────────────────────────────────────────────────────
@@ -44,6 +45,66 @@ const tabs = [
   { id: 'answered',   n: 'Terjawab' },
   { id: 'unanswered', n: 'Belum Dijawab' },
 ]
+
+// ─────────────────────────────────────────────────────────────
+// SLIDING ACTIVE TAB — tab nav
+// One pill that slides from the previous tab to the newly clicked one,
+// instead of each tab switching its own background color.
+// ─────────────────────────────────────────────────────────────
+const navRef = ref(null)
+const tabRefs = {}
+const setTabRef = (el, id) => { if (el) tabRefs[id] = el }
+
+const pill = ref({ left: 0, top: 0, width: 0, height: 0, ready: false, animate: false })
+let navResizeObserver = null
+
+const movePill = (animate = true) => {
+  const el = tabRefs[activeTab.value]
+  if (!el) return
+  pill.value = {
+    left: el.offsetLeft,
+    top: el.offsetTop,
+    width: el.offsetWidth,
+    height: el.offsetHeight,
+    ready: true,
+    animate,
+  }
+}
+
+watch(activeTab, () => movePill(true))
+
+onMounted(() => {
+  movePill(false) // place it on the first tab without animating
+  if (document.fonts?.ready) document.fonts.ready.then(() => movePill(false))
+  if (navRef.value && 'ResizeObserver' in window) {
+    navResizeObserver = new ResizeObserver(() => movePill(false))
+    navResizeObserver.observe(navRef.value)
+  }
+})
+
+onUnmounted(() => navResizeObserver?.disconnect())
+
+const pillStyle = computed(() => {
+  const p = pill.value
+  const ease = 'cubic-bezier(0.34, 1.3, 0.64, 1)'
+  return {
+    left: `${p.left}px`,
+    top: `${p.top}px`,
+    width: `${p.width}px`,
+    height: `${p.height}px`,
+    opacity: p.ready ? 1 : 0,
+    transition: p.animate
+      ? `left 0.45s ${ease}, top 0.45s ${ease}, width 0.45s ${ease}, height 0.45s ${ease}`
+      : 'none',
+  }
+})
+
+// Seconds between cards. 0 = every card animates at the same moment.
+const CARD_STAGGER = 0
+
+// AnimatedContent animates once when it mounts, so we change its key whenever the section
+// (or the search text) changes. All cards then remount together and rise in again.
+const listKey = computed(() => `${activeTab.value}|${searchInput.value.trim().toLowerCase()}`)
 
 const filteredQuestions = computed(() => {
   if (!questions.value) return []
@@ -269,7 +330,7 @@ const getStatusLabel = (s) =>
 
         <div class="mb-10 relative overflow-hidden rounded-[2rem] bg-primary h-52 flex flex-col justify-end p-8 shadow-xl shadow-primary/10 transition-transform hover:scale-[1.01] duration-500">
           <div class="absolute inset-0">
-            <img class="w-full h-full object-cover" src="https://ahsan.tv/wp-content/uploads/2026/05/test.webp" />
+            <img class="w-full h-full object-cover" src="https://chwjmwuqdbcmgnascxfg.supabase.co/storage/v1/object/sign/just%20me/green-2.webp?token=eyJraWQiOiIwOGQ0ZmUxMi1lYmVhLTQwMTUtODg1NS1hMjQ1NjEyYjU5NzkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJqdXN0IG1lL2dyZWVuLTIud2VicCIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3OTEzNzQ2NDksImV4cCI6MjQyMjA5NDY0OX0.un6uz_7p03FcNP6UbDV1s9HbvxWzBVtsj83rsCFWrtI" />
             <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
           </div>
           <div class="relative z-10">
@@ -289,16 +350,28 @@ const getStatusLabel = (s) =>
         </div>
 
         <nav class="flex justify-center mb-10">
-          <div class="inline-flex bg-surface-container-low/80 dark:bg-zinc-800/80 backdrop-blur-md p-1.5 rounded-full shadow-sm border border-outline-variant/10 dark:border-zinc-700/50">
+          <!-- `relative` so the sliding pill and tab offsets are measured from this box -->
+          <div
+            ref="navRef"
+            class="relative inline-flex bg-surface-container-low/80 dark:bg-zinc-800/80 backdrop-blur-md p-1.5 rounded-full shadow-sm border border-outline-variant/10 dark:border-zinc-700/50"
+          >
+            <!-- Sliding active pill (sits behind the tab labels) -->
+            <span
+              class="absolute rounded-full bg-primary shadow-lg pointer-events-none"
+              :style="pillStyle"
+              aria-hidden="true"
+            ></span>
+
             <button
               v-for="tab in tabs"
               :key="tab.id"
+              :ref="el => setTabRef(el, tab.id)"
               type="button"
               @click="activeTab = tab.id"
-              class="px-8 py-2.5 rounded-full text-xs font-bold transition-all duration-300 active:scale-90"
+              class="relative z-[1] px-8 py-2.5 rounded-full text-xs font-bold transition-all duration-300 active:scale-90"
               :class="activeTab === tab.id
-                ? 'bg-primary text-white shadow-lg scale-105'
-                : 'text-on-surface-variant dark:text-zinc-400 hover:text-primary hover:bg-primary/5'"
+                ? 'text-white'
+                : 'text-on-surface-variant dark:text-zinc-400 hover:text-primary'"
             >{{ tab.n }}</button>
           </div>
         </nav>
@@ -306,11 +379,26 @@ const getStatusLabel = (s) =>
         <!-- FIX: min-height keeps the page height stable when the list gets short -->
         <div class="min-h-[60vh]">
           <div v-if="filteredQuestions.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- threshold -100 = the scroll trigger starts far below the page, so it is already "reached"
+                 and ALL cards animate right away, even the ones below the visible screen. -->
+            <AnimatedContent
+              v-for="(q, i) in filteredQuestions"
+              :key="`${listKey}|${q.id}`"
+              class-name="h-full"
+              :distance="60"
+              direction="vertical"
+              :reverse="false"
+              :duration="0.8"
+              ease="power3.out"
+              :initial-opacity="0"
+              :animate-opacity="true"
+              :scale="1"
+              :threshold="-100"
+              :delay="Math.min(i, 8) * CARD_STAGGER"
+            >
             <NuxtLink
-              v-for="q in filteredQuestions"
-              :key="q.id"
               :to="`/questions/${q.id}`"
-              class="bg-surface-container-lowest/85 dark:bg-zinc-900/85 backdrop-blur-md rounded-3xl p-6 relative overflow-hidden shadow-[0px_12px_32px_rgba(20,28,43,0.04)] dark:shadow-[0px_12px_32px_rgba(0,0,0,0.3)] border border-outline-variant/10 dark:border-zinc-800 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group/card flex flex-col cursor-pointer"
+              class="h-full bg-surface-container-lowest/85 dark:bg-zinc-900/85 backdrop-blur-md rounded-3xl p-6 relative overflow-hidden shadow-[0px_12px_32px_rgba(20,28,43,0.04)] dark:shadow-[0px_12px_32px_rgba(0,0,0,0.3)] border border-outline-variant/10 dark:border-zinc-800 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group/card flex flex-col cursor-pointer"
             >
               <div :class="[
                 q.status === 'answered' ? 'bg-primary' :
@@ -386,6 +474,7 @@ const getStatusLabel = (s) =>
                   size="sm" /> DISABLED -->
               </div>
             </NuxtLink>
+            </AnimatedContent>
           </div>
 
           <div v-else class="text-center py-20">

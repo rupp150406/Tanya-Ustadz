@@ -305,7 +305,7 @@ function navigateToUstadz(id) {
           </div>
           <div class="mt-5 flex items-start gap-3 px-1">
             <div class="w-[3px] self-stretch bg-amber-200 dark:bg-amber-800 rounded-full shrink-0 mt-0.5"></div>
-            <p class="text-xs text-outline/80 dark:text-zinc-500 leading-relaxed italic">
+            <p class="text-xs text-outline/80 dark:text-white leading-relaxed italic">
               Proses moderasi biasanya membutuhkan waktu 1–3 hari kerja. antum akan mendapat notifikasi
               setelah pertanyaan lolos verifikasi.
             </p>

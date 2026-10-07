@@ -12,7 +12,7 @@ const { initFCM } = useFCM()
 
 // ─── DEV PREVIEW (remove before production) ───────────────────
 // Set to false (or delete the button + these lines) when you're done previewing.
-const SHOW_PREVIEW_BUTTON = true
+const SHOW_PREVIEW_BUTTON = false
 const previewConnected = ref(false)
 
 // Real connection state OR the forced preview state
