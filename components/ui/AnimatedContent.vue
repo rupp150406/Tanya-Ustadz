@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch, useTemplateRef } from 'vue';
+import { onMounted, onBeforeUnmount, watch, useTemplateRef } from 'vue';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -17,6 +17,7 @@ interface AnimatedContentProps {
   threshold?: number;
   delay?: number;
   className?: string;
+  respectReducedMotion?: boolean; // true = users with "reduce motion" get a fade only (no movement)
 }
 
 const props = withDefaults(defineProps<AnimatedContentProps>(), {
@@ -30,7 +31,8 @@ const props = withDefaults(defineProps<AnimatedContentProps>(), {
   scale: 1,
   threshold: 0.1,
   delay: 0,
-  className: ''
+  className: '',
+  respectReducedMotion: true
 });
 
 const emit = defineEmits<{
@@ -39,28 +41,58 @@ const emit = defineEmits<{
 
 const containerRef = useTemplateRef<HTMLDivElement>('containerRef');
 
-onMounted(() => {
+// Each instance only ever touches ITS OWN tween + ScrollTrigger.
+// The old version called ScrollTrigger.getAll().forEach(t => t.kill()), which killed every OTHER
+// card's pending animation too. Those cards had already been hidden (opacity 0) and were never
+// revealed again → "invisible but clickable" until a refresh.
+let tween: gsap.core.Tween | null = null;
+let started = false; // true once this card's animation has begun (or finished)
+
+const killOwn = () => {
+  tween?.scrollTrigger?.kill();
+  tween?.kill();
+  tween = null;
+};
+
+const setup = () => {
   const el = containerRef.value;
   if (!el) return;
 
+  killOwn();
+  started = false;
+
+  // "Reduce motion" (e.g. Windows "Animation effects" turned off): keep a gentle fade, drop the movement/scale
+  const reduceMotion =
+    props.respectReducedMotion &&
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   const axis = props.direction === 'horizontal' ? 'x' : 'y';
-  const offset = props.reverse ? -props.distance : props.distance;
+  const offset = reduceMotion ? 0 : props.reverse ? -props.distance : props.distance;
   const startPct = (1 - props.threshold) * 100;
 
   gsap.set(el, {
     [axis]: offset,
-    scale: props.scale,
+    scale: reduceMotion ? 1 : props.scale,
     opacity: props.animateOpacity ? props.initialOpacity : 1
   });
 
-  gsap.to(el, {
+  tween = gsap.to(el, {
     [axis]: 0,
     scale: 1,
     opacity: 1,
     duration: props.duration,
     ease: props.ease,
     delay: props.delay,
-    onComplete: () => emit('complete'),
+    // Remove leftover inline transform/opacity when done (no permanent transform on every card)
+    clearProps: 'transform,opacity',
+    onStart: () => {
+      started = true;
+    },
+    onComplete: () => {
+      started = true;
+      emit('complete');
+    },
     scrollTrigger: {
       trigger: el,
       start: `top ${startPct}%`,
@@ -68,8 +100,13 @@ onMounted(() => {
       once: true
     }
   });
-});
+};
 
+onMounted(setup);
+
+// If props change BEFORE the animation started (e.g. the card's index/delay shifted because a new
+// item was inserted above it), rebuild only this card. Once it has started/finished, leave it alone:
+// re-hiding a card that is already visible would make it vanish or replay.
 watch(
   () => [
     props.distance,
@@ -84,48 +121,12 @@ watch(
     props.delay
   ],
   () => {
-    const el = containerRef.value;
-    if (!el) return;
-
-    ScrollTrigger.getAll().forEach(t => t.kill());
-    gsap.killTweensOf(el);
-
-    const axis = props.direction === 'horizontal' ? 'x' : 'y';
-    const offset = props.reverse ? -props.distance : props.distance;
-    const startPct = (1 - props.threshold) * 100;
-
-    gsap.set(el, {
-      [axis]: offset,
-      scale: props.scale,
-      opacity: props.animateOpacity ? props.initialOpacity : 1
-    });
-
-    gsap.to(el, {
-      [axis]: 0,
-      scale: 1,
-      opacity: 1,
-      duration: props.duration,
-      ease: props.ease,
-      delay: props.delay,
-      onComplete: () => emit('complete'),
-      scrollTrigger: {
-        trigger: el,
-        start: `top ${startPct}%`,
-        toggleActions: 'play none none none',
-        once: true
-      }
-    });
-  },
-  { deep: true }
+    if (started) return;
+    setup();
+  }
 );
 
-onUnmounted(() => {
-  const el = containerRef.value;
-  if (el) {
-    ScrollTrigger.getAll().forEach(t => t.kill());
-    gsap.killTweensOf(el);
-  }
-});
+onBeforeUnmount(killOwn);
 </script>
 
 <template>

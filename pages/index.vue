@@ -11,7 +11,26 @@ import AnimatedContent from '~/components/ui/AnimatedContent.vue'
 // THEME
 // ─────────────────────────────────────────────────────────────
 const { initTheme } = useTheme()
-onMounted(() => initTheme())
+
+// ─────────────────────────────────────────────────────────────
+// MOBILE / LOW-POWER MODE
+// lowPower = phone, touch device, or "reduce motion" turned on.
+// bgReady  = the WebGL background mounts only AFTER we know which settings to use
+//            (so a phone never spins up the heavy desktop version first).
+// ─────────────────────────────────────────────────────────────
+const lowPower = ref(false)
+const bgReady = ref(false)
+
+onMounted(() => {
+  initTheme()
+  lowPower.value = window.matchMedia(
+    '(max-width: 767px), (pointer: coarse), (prefers-reduced-motion: reduce)'
+  ).matches
+  bgReady.value = true
+})
+
+// Only the first cards play the rise-in animation; the rest appear instantly.
+const ANIMATED_CARDS = 6
 
 // ─────────────────────────────────────────────────────────────
 // PROFILE — READ-ONLY CONSUMER
@@ -39,6 +58,14 @@ const { fingerprint, getFingerprint } = useFingerprint()
 
 const activeTab   = ref('all')
 const searchInput = ref('')
+const searchQuery = ref('') // debounced copy of searchInput, used for filtering
+
+let searchTimer = null
+watch(searchInput, (v) => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => { searchQuery.value = v }, 200)
+})
+onUnmounted(() => clearTimeout(searchTimer))
 
 const tabs = [
   { id: 'all',        n: 'Semua' },
@@ -87,14 +114,18 @@ onUnmounted(() => navResizeObserver?.disconnect())
 const pillStyle = computed(() => {
   const p = pill.value
   const ease = 'cubic-bezier(0.34, 1.3, 0.64, 1)'
+  // Position moves with transform (GPU-composited) instead of left/top (layout every frame).
+  // Height is the same for every tab, so only width still needs a transition.
   return {
-    left: `${p.left}px`,
-    top: `${p.top}px`,
+    left: '0px',
+    top: '0px',
     width: `${p.width}px`,
     height: `${p.height}px`,
+    transform: `translate3d(${p.left}px, ${p.top}px, 0)`,
+    willChange: 'transform',
     opacity: p.ready ? 1 : 0,
     transition: p.animate
-      ? `left 0.45s ${ease}, top 0.45s ${ease}, width 0.45s ${ease}, height 0.45s ${ease}`
+      ? `transform 0.45s ${ease}, width 0.45s ${ease}`
       : 'none',
   }
 })
@@ -102,9 +133,9 @@ const pillStyle = computed(() => {
 // Seconds between cards. 0 = every card animates at the same moment.
 const CARD_STAGGER = 0
 
-// AnimatedContent animates once when it mounts, so we change its key whenever the section
-// (or the search text) changes. All cards then remount together and rise in again.
-const listKey = computed(() => `${activeTab.value}|${searchInput.value.trim().toLowerCase()}`)
+// AnimatedContent animates once when it mounts, so we change its key whenever the section changes.
+// The search text is NOT part of the key: typing used to remount + re-animate every card on each keystroke.
+const listKey = computed(() => activeTab.value)
 
 const filteredQuestions = computed(() => {
   if (!questions.value) return []
@@ -115,8 +146,8 @@ const filteredQuestions = computed(() => {
   })
   if (activeTab.value === 'answered')   list = list.filter(q => q.status === 'answered')
   if (activeTab.value === 'unanswered') list = list.filter(q => q.status !== 'answered')
-  if (searchInput.value.trim()) {
-    const kw = searchInput.value.toLowerCase().trim()
+  if (searchQuery.value.trim()) {
+    const kw = searchQuery.value.toLowerCase().trim()
     list = list.filter(item =>
       item.question.toLowerCase().includes(kw) ||
       (item.category && item.category.toLowerCase().includes(kw))
@@ -209,6 +240,7 @@ const getStatusLabel = (s) =>
     <!-- Interactive 3D Gradient Waves Background -->
     <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
       <GradientWaves
+        v-if="bgReady"
         horizonColor="#10B981"
         waveColor="#84CC16"
         crestColor="#FFFFFF"
@@ -222,19 +254,19 @@ const getStatusLabel = (s) =>
         :zoom="1.0"
         :height="5.5"
         :fogDepth="15"
-        detail="medium"
+        :detail="lowPower ? 'low' : 'medium'"
         :brightness="1.0"
         :opacity="1.0"
-        :mouseInteraction="true"
+        :mouseInteraction="!lowPower"
         :parallaxStrength="0.5"
-        :grain="true"
+        :grain="!lowPower"
         :grainIntensity="0.05"
       />
     </div>
 
     <!-- Foreground Content -->
     <div class="relative z-10 flex flex-col min-h-screen">
-      <header class="bg-surface/70 dark:bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 shadow-sm bg-gradient-to-b from-slate-100/10 dark:from-zinc-800/10 to-transparent border-b border-transparent dark:border-zinc-800/50">
+      <header class="bg-surface/95 dark:bg-zinc-950/95 md:bg-surface/70 dark:md:bg-zinc-950/80 md:backdrop-blur-md sticky top-0 z-50 shadow-sm bg-gradient-to-b from-slate-100/10 dark:from-zinc-800/10 to-transparent border-b border-transparent dark:border-zinc-800/50">
         <div class="flex justify-between items-center w-full px-6 py-3 max-w-screen-2xl mx-auto">
           <div class="flex items-center gap-4">
             <NuxtLink to="/" class="text-2xl font-bold tracking-tighter text-emerald-800 dark:text-emerald-400 font-headline">
@@ -247,7 +279,7 @@ const getStatusLabel = (s) =>
                 :spread="120"
                 direction="left"
                 :yoyo="false"
-                :pause-on-hover="false"
+                :pause-on-hover="false" :disabled=false
               />
             </NuxtLink>
           </div>
@@ -322,15 +354,15 @@ const getStatusLabel = (s) =>
             <input
               v-model="searchInput"
               type="text"
-              class="w-full h-14 pl-12 pr-4 rounded-full border border-outline-variant/20 dark:border-zinc-700/50 bg-surface-container-high/80 dark:bg-zinc-800/80 backdrop-blur-md text-on-surface dark:text-zinc-100 focus:ring-2 focus:ring-primary/20 placeholder:text-outline/60 dark:placeholder:text-zinc-500 transition-all shadow-sm"
+              class="w-full h-14 pl-12 pr-4 rounded-full border border-outline-variant/20 dark:border-zinc-700/50 bg-surface-container-high/80 dark:bg-zinc-800/80 md:backdrop-blur-md text-on-surface dark:text-zinc-100 focus:ring-2 focus:ring-primary/20 placeholder:text-outline/60 dark:placeholder:text-zinc-500 transition-all shadow-sm"
               placeholder="Cari jawaban atau topik hukum..."
             />
           </div>
         </div>
 
-        <div class="mb-10 relative overflow-hidden rounded-[2rem] bg-primary h-52 flex flex-col justify-end p-8 shadow-xl shadow-primary/10 transition-transform hover:scale-[1.01] duration-500">
+        <div class="mb-10 relative overflow-hidden rounded-[2rem] bg-primary h-52 flex flex-col justify-end p-8 shadow-xl shadow-primary/10 transition-transform md:hover:scale-[1.01] duration-500">
           <div class="absolute inset-0">
-            <img class="w-full h-full object-cover" src="https://chwjmwuqdbcmgnascxfg.supabase.co/storage/v1/object/sign/just%20me/green-2.webp?token=eyJraWQiOiIwOGQ0ZmUxMi1lYmVhLTQwMTUtODg1NS1hMjQ1NjEyYjU5NzkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJqdXN0IG1lL2dyZWVuLTIud2VicCIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3OTEzNzQ2NDksImV4cCI6MjQyMjA5NDY0OX0.un6uz_7p03FcNP6UbDV1s9HbvxWzBVtsj83rsCFWrtI" />
+            <img decoding="async" class="w-full h-full object-cover" src="https://chwjmwuqdbcmgnascxfg.supabase.co/storage/v1/object/sign/just%20me/green-2.webp?token=eyJraWQiOiIwOGQ0ZmUxMi1lYmVhLTQwMTUtODg1NS1hMjQ1NjEyYjU5NzkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJqdXN0IG1lL2dyZWVuLTIud2VicCIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3OTEzNzQ2NDksImV4cCI6MjQyMjA5NDY0OX0.un6uz_7p03FcNP6UbDV1s9HbvxWzBVtsj83rsCFWrtI" />
             <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
           </div>
           <div class="relative z-10">
@@ -343,7 +375,7 @@ const getStatusLabel = (s) =>
                 :spread="120"
                 direction="left"
                 :yoyo="false"
-                :pause-on-hover="false"
+                :pause-on-hover="false" :disabled=false
               /></p>
             <h2 class="font-headline text-white text-2xl font-extrabold leading-tight">Mencari Ketenangan Melalui Ilmu Syar'i</h2>
           </div>
@@ -353,7 +385,7 @@ const getStatusLabel = (s) =>
           <!-- `relative` so the sliding pill and tab offsets are measured from this box -->
           <div
             ref="navRef"
-            class="relative inline-flex bg-surface-container-low/80 dark:bg-zinc-800/80 backdrop-blur-md p-1.5 rounded-full shadow-sm border border-outline-variant/10 dark:border-zinc-700/50"
+            class="relative inline-flex bg-surface-container-low/80 dark:bg-zinc-800/80 md:backdrop-blur-md p-1.5 rounded-full shadow-sm border border-outline-variant/10 dark:border-zinc-700/50"
           >
             <!-- Sliding active pill (sits behind the tab labels) -->
             <span
@@ -368,7 +400,7 @@ const getStatusLabel = (s) =>
               :ref="el => setTabRef(el, tab.id)"
               type="button"
               @click="activeTab = tab.id"
-              class="relative z-[1] px-8 py-2.5 rounded-full text-xs font-bold transition-all duration-300 active:scale-90"
+              class="relative z-[1] px-8 py-2.5 rounded-full text-xs font-bold transition-[color,transform] duration-300 active:scale-90"
               :class="activeTab === tab.id
                 ? 'text-white'
                 : 'text-on-surface-variant dark:text-zinc-400 hover:text-primary'"
@@ -380,30 +412,30 @@ const getStatusLabel = (s) =>
         <div class="min-h-[60vh]">
           <div v-if="filteredQuestions.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- threshold -100 = the scroll trigger starts far below the page, so it is already "reached"
-                 and ALL cards animate right away, even the ones below the visible screen. -->
+                 and the cards animate right away. Only the first ANIMATED_CARDS actually animate (cheaper on phones). -->
             <AnimatedContent
               v-for="(q, i) in filteredQuestions"
               :key="`${listKey}|${q.id}`"
               class-name="h-full"
-              :distance="60"
+              :distance="i < ANIMATED_CARDS ? (lowPower ? 24 : 60) : 0"
               direction="vertical"
               :reverse="false"
-              :duration="0.8"
+              :duration="i < ANIMATED_CARDS ? (lowPower ? 0.5 : 0.8) : 0"
               ease="power3.out"
-              :initial-opacity="0"
-              :animate-opacity="true"
+              :initial-opacity="i < ANIMATED_CARDS ? 0 : 1"
+              :animate-opacity="i < ANIMATED_CARDS"
               :scale="1"
               :threshold="-100"
               :delay="Math.min(i, 8) * CARD_STAGGER"
             >
             <NuxtLink
               :to="`/questions/${q.id}`"
-              class="h-full bg-surface-container-lowest/85 dark:bg-zinc-900/85 backdrop-blur-md rounded-3xl p-6 relative overflow-hidden shadow-[0px_12px_32px_rgba(20,28,43,0.04)] dark:shadow-[0px_12px_32px_rgba(0,0,0,0.3)] border border-outline-variant/10 dark:border-zinc-800 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group/card flex flex-col cursor-pointer"
+              class="h-full bg-surface-container-lowest/85 dark:bg-zinc-900/85 md:backdrop-blur-md rounded-3xl p-6 relative overflow-hidden shadow-[0px_12px_32px_rgba(20,28,43,0.04)] dark:shadow-[0px_12px_32px_rgba(0,0,0,0.3)] border border-outline-variant/10 dark:border-zinc-800 md:hover:shadow-xl md:hover:shadow-primary/5 transition-shadow duration-300 group/card flex flex-col cursor-pointer"
             >
               <div :class="[
                 q.status === 'answered' ? 'bg-primary' :
                 q.status === 'verified' ? 'bg-cyan-500' : 'bg-amber-500'
-              ]" class="absolute top-0 left-0 w-1 h-full transition-all group-hover/card:w-1.5"></div>
+              ]" class="absolute top-0 left-0 w-1 h-full transition-[width] md:group-hover/card:w-1.5"></div>
 
               <div class="flex justify-between items-start mb-4">
                 <span :class="q.status === 'answered' ? 'text-primary bg-secondary-container/30 dark:bg-primary/10 dark:text-emerald-400' : 'text-amber-800 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300'"
@@ -487,7 +519,7 @@ const getStatusLabel = (s) =>
       <div class="fixed bottom-8 right-8 z-50">
         <NuxtLink
           to="/ask"
-          class="bg-gradient-to-br from-primary to-primary-container text-white h-16 px-8 rounded-full shadow-2xl flex items-center gap-3 hover:scale-105 hover:shadow-primary/30 active:scale-95 transition-all duration-300 group/fab"
+          class="bg-gradient-to-br from-primary to-primary-container text-white h-16 px-8 rounded-full shadow-2xl flex items-center gap-3 md:hover:scale-105 active:scale-95 transition-transform duration-300 group/fab"
         >
           <span class="material-symbols-outlined transition-transform group-hover/fab:rotate-12" style="font-variation-settings: 'FILL' 1;">add_comment</span>
           <span class="font-bold text-sm tracking-wide font-headline">Tanya Ustadz</span>

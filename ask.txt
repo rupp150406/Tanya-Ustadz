@@ -5,20 +5,17 @@ import GradientWaves from '~/components/ui/GradientWaves.vue'
 import UiShinyText from '~/components/ui/ShinyText.vue'
 import SwipeToast from '~/components/ui/SwipeToast.vue'
 import GooeyNav from '~/components/ui/GooeyNav.vue'
-import { useLowPower } from '~/composables/useLowpower'
 import { DotLottieVue } from '@lottiefiles/dotlottie-vue'
 const { addQuestion, fetchPublic, pending: isSubmitting } = useQuestions()
 const { fingerprint, getFingerprint } = useFingerprint()
 const { connect, checkConnection, isConnected } = useTelegram()
 const { initFCM } = useFCM()
-const { lowPower, bgReady, detect } = useLowPower() // phone / touch / reduce-motion mode
 
 // ─── DEV PREVIEW (remove before production) ───────────────────
 // ONE flag for BOTH preview buttons (Telegram toast + "question sent" popup):
 //   true  = buttons visible (testing)
 //   false = buttons hidden (production)
-const { initTheme } = useTheme()
-const SHOW_PREVIEW_BUTTON = false
+const SHOW_PREVIEW_BUTTON = true
 const previewConnected = ref(false)
 
 // Real connection state OR the forced preview state
@@ -41,7 +38,6 @@ const previewSuccessAlert = () => {
 // ─── Theme ────────────────────────────────────────────────────
 onMounted(async () => {
   initTheme()
-  detect()
   const fp = await getFingerprint()
   if (fp) checkConnection(fp)
   // Delay the toast so the slide-in animation is visible
@@ -133,7 +129,6 @@ const handleSubmit = async () => {
     <!-- Interactive 3D Gradient Waves Background -->
     <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
       <GradientWaves
-        v-if="bgReady"
         horizonColor="#10B981"
         waveColor="#84CC16"
         crestColor="#FFFFFF"
@@ -147,12 +142,12 @@ const handleSubmit = async () => {
         :zoom="1.0"
         :height="5.5"
         :fogDepth="15"
-        :detail="lowPower ? 'low' : 'medium'"
+        detail="medium"
         :brightness="1.0"
         :opacity="1.0"
-        :mouseInteraction="!lowPower"
+        :mouseInteraction="true"
         :parallaxStrength="0.5"
-        :grain="!lowPower"
+        :grain="true"
         :grainIntensity="0.05"
       />
     </div>
@@ -193,7 +188,7 @@ const handleSubmit = async () => {
         </div>
       </div>
 
-      <header class="bg-surface/95 dark:bg-zinc-950/95 md:bg-surface/70 dark:md:bg-zinc-950/80 md:backdrop-blur-md sticky top-0 z-50 shadow-sm border-b border-transparent dark:border-zinc-800/50">
+      <header class="bg-surface/70 dark:bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50 shadow-sm border-b border-transparent dark:border-zinc-800/50">
         <div class="flex justify-between items-center w-full px-6 py-3 max-w-screen-2xl mx-auto">
           <div class="flex items-center gap-4">
             <NuxtLink to="/" class="text-2xl font-bold tracking-tighter text-emerald-800 dark:text-emerald-400 font-headline">
@@ -206,7 +201,7 @@ const handleSubmit = async () => {
                 :spread="120"
                 direction="left"
                 :yoyo="false"
-                :pause-on-hover="false" :disabled=false
+                :pause-on-hover="false"
               />
             </NuxtLink>
           </div>
@@ -229,7 +224,7 @@ const handleSubmit = async () => {
                 :spread="120"
                 direction="left"
                 :yoyo="false"
-                :pause-on-hover="false" :disabled=false
+                :pause-on-hover="false"
               />
             </h1>
             <p class="text-on-surface-variant dark:text-zinc-400 text-lg max-w-md mx-auto leading-relaxed">
@@ -237,7 +232,7 @@ const handleSubmit = async () => {
             </p>
           </div>
 
-          <div class="bg-surface-container-lowest/85 dark:bg-zinc-900/85 md:backdrop-blur-md rounded-[2rem] shadow-[0px_12px_32px_rgba(20,28,43,0.06)] dark:shadow-[0px_12px_32px_rgba(0,0,0,0.4)] overflow-hidden p-8 md:p-12 border border-outline-variant/10 dark:border-zinc-800">
+          <div class="bg-surface-container-lowest/85 dark:bg-zinc-900/85 backdrop-blur-md rounded-[2rem] shadow-[0px_12px_32px_rgba(20,28,43,0.06)] dark:shadow-[0px_12px_32px_rgba(0,0,0,0.4)] overflow-hidden p-8 md:p-12 border border-outline-variant/10 dark:border-zinc-800">
           <div class="mb-8 flex items-center gap-3 p-4 rounded-xl bg-tertiary-fixed dark:bg-amber-900/20 text-on-tertiary-fixed-variant dark:text-amber-300">
             <span class="material-symbols-outlined text-tertiary dark:text-amber-400">info</span>
             <p class="text-sm font-medium">Batas bertanya: 5 pertanyaan setiap 5 menit untuk menjaga kualitas layanan.</p>
@@ -249,7 +244,7 @@ const handleSubmit = async () => {
                 Pilih Kategori
               </label>
 
-              <GooeyNav v-model="category" :items="categories" :disabled="isSubmitting" :lite=false />
+              <GooeyNav v-model="category" :items="categories" :disabled="isSubmitting" />
             </div>
 
             <div class="space-y-4">
@@ -262,7 +257,7 @@ const handleSubmit = async () => {
                   :maxlength="maxChars"
                   :disabled="isSubmitting"
                   rows="4"
-                  class="w-full bg-surface-container-low/80 dark:bg-zinc-800/80 md:backdrop-blur-sm border border-outline-variant/20 dark:border-zinc-700/50 rounded-3xl p-6 focus:ring-2 focus:ring-primary/20 text-on-surface dark:text-zinc-100 placeholder:text-outline/60 dark:placeholder:text-zinc-500 resize-none disabled:opacity-50 transition-[box-shadow,opacity]"
+                  class="w-full bg-surface-container-low/80 dark:bg-zinc-800/80 backdrop-blur-sm border border-outline-variant/20 dark:border-zinc-700/50 rounded-3xl p-6 focus:ring-2 focus:ring-primary/20 text-on-surface dark:text-zinc-100 placeholder:text-outline/60 dark:placeholder:text-zinc-500 resize-none disabled:opacity-50 transition-all"
                   placeholder="Tuliskan pertanyaan Anda..."
                 ></textarea>
                 <div class="absolute bottom-4 right-6 text-xs font-medium text-outline dark:text-zinc-500">
@@ -274,7 +269,7 @@ const handleSubmit = async () => {
             <button
               type="submit"
               :disabled="isSubmitting"
-              class="w-full py-4 px-8 rounded-full bg-gradient-to-br from-primary to-primary-container text-white font-headline font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-transform md:hover:scale-[1.02] active:scale-95 disabled:opacity-70"
+              class="w-full py-4 px-8 rounded-full bg-gradient-to-br from-primary to-primary-container text-white font-headline font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-70"
             >
               <span v-if="isSubmitting" class="material-symbols-outlined animate-spin">sync</span>
               <span v-else class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">send</span>
@@ -368,7 +363,7 @@ const handleSubmit = async () => {
       <button
         type="button"
         @click="previewSuccessAlert"
-        class="flex items-center gap-2 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2.5 text-xs font-bold shadow-xl md:hover:scale-105 active:scale-95 transition-transform"
+        class="flex items-center gap-2 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2.5 text-xs font-bold shadow-xl hover:scale-105 active:scale-95 transition-all"
       >
         <span class="material-symbols-outlined text-base">mark_email_read</span>
         Preview: Pertanyaan terkirim
@@ -376,7 +371,7 @@ const handleSubmit = async () => {
       <button
         type="button"
         @click="togglePreview"
-        class="flex items-center gap-2 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2.5 text-xs font-bold shadow-xl md:hover:scale-105 active:scale-95 transition-transform"
+        class="flex items-center gap-2 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2.5 text-xs font-bold shadow-xl hover:scale-105 active:scale-95 transition-all"
       >
         <span class="material-symbols-outlined text-base">visibility</span>
         {{ previewConnected ? 'Preview: Belum terhubung' : 'Preview: Sudah terhubung' }}
@@ -390,19 +385,17 @@ const handleSubmit = async () => {
   position: fixed;
   top: 0; left: 0;
   width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.55); /* solid dim on phones: full-screen backdrop-filter is too heavy */
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.3s ease, visibility 0.3s ease;
+  transition: all 0.3s ease;
 }
 .alert-overlay.active { opacity: 1; visibility: visible; }
-@media (min-width: 768px) {
-  .alert-overlay { background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(4px); }
-}
 
 .alert-card {
   background: white;
@@ -411,7 +404,7 @@ const handleSubmit = async () => {
   max-width: 400px;
   overflow: hidden;
   transform: scale(0.9);
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .alert-overlay.active .alert-card { transform: scale(1); }
 
@@ -432,14 +425,11 @@ const handleSubmit = async () => {
   border-radius: 9999px;
   border: none;
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: all 0.2s ease;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
-@media (hover: hover) {
-  .alert-button { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-  .alert-button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,105,72,0.3); }
-}
+.alert-button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,105,72,0.3); }
 .lottie-container { width: 100px; height: 100px; }
 .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
 </style>

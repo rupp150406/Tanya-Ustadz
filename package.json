@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "nuxt build",
-    "dev": "nuxt dev",
+    "dev": "nuxt dev --host",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"
@@ -13,7 +13,7 @@
     "@heroicons/vue": "^2.2.0",
     "@hugeicons/core-free-icons": "^4.3.5",
     "@hugeicons/vue": "^1.0.8",
-    "@lottiefiles/dotlottie-vue": "^0.11.10",
+    "@lottiefiles/dotlottie-vue": "^0.11.28",
     "@lottiefiles/vue-lottie-player": "^1.1.0",
     "@nuxtjs/supabase": "^2.0.4",
     "@nuxtjs/tailwindcss": "^6.14.0",

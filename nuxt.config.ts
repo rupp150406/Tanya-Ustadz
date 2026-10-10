@@ -90,7 +90,7 @@ runtimeConfig: {
 
   vite: {
     server: {
-      allowedHosts: true 
+      allowedHosts: true,
     }
   },
 
