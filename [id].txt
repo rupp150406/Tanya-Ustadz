@@ -48,19 +48,6 @@ const formatDateShort = (ds) => {
   })
 }
 
-// ─── Category (real value from the question; "Umum" only when it is empty) ───
-// Same ids/icons as the `categories` list in ask.vue (saved value = the tile's id).
-// Keys are lowercase. Add a line here if you add a category there.
-const CATEGORY_ICONS = {
-  'fikih': 'balance',
-  'akhlak & adab': 'favorite',
-  'keluarga': 'family_restroom',
-  'muamalah': 'payments',
-  'umum': 'language',
-}
-const categoryLabel = computed(() => q.value?.category?.trim() || 'Umum')
-const categoryIcon = computed(() => CATEGORY_ICONS[categoryLabel.value.toLowerCase()] ?? 'category')
-
 // ─── Upvote (optimistic local toggle) ────────────────────────
 const upvoted = ref(false)
 const localUpvotes = computed(() => (q.value?.upvotes ?? 0) + (upvoted.value ? 1 : 0))
@@ -233,8 +220,8 @@ function navigateToUstadz(id) {
         <!-- Meta Row -->
         <div class="flex flex-wrap items-center justify-between gap-3 mb-8 pt-5">
           <div class="flex items-center gap-1.5 text-on-surface-variant dark:text-zinc-400">
-            <span class="material-symbols-outlined text-[15px]">{{ categoryIcon }}</span>
-            <span class="text-sm font-semibold">{{ categoryLabel }}</span>
+            <span class="material-symbols-outlined text-[15px]">category</span>
+            <span class="text-sm font-semibold">Umum</span>
             <span class="text-outline/40 dark:text-zinc-600 mx-1">·</span>
             <span class="text-xs text-outline dark:text-zinc-500">{{ formatDateShort(q.created_at) }}</span>
           </div>
@@ -262,7 +249,7 @@ function navigateToUstadz(id) {
                 'bg-primary':   q.status === 'answered',
               }">
             </div>
-            <h2 class="text-xl sm:text-3xl font-extrabold font-headline text-on-surface dark:text-zinc-100 leading-tight mb-3 md:mb-5 whitespace-pre-line">
+            <h2 class="text-[1.5rem] sm:text-3xl font-extrabold font-headline text-on-surface dark:text-zinc-100 leading-tight mb-5 whitespace-pre-line">
               {{ q.question }}
             </h2>
           </div>
@@ -286,7 +273,7 @@ function navigateToUstadz(id) {
 
         <!-- [1] PENDING -->
         <section v-if="q.status === 'pending'">
-          <div class="bg-amber-50/95 md:bg-amber-50/90 dark:bg-amber-900/40 dark:md:bg-amber-900/20 md:backdrop-blur-md border border-amber-200/70 dark:border-amber-800/50 rounded-3xl p-5 md:p-10 relative overflow-hidden">
+          <div class="bg-amber-50/95 md:bg-amber-50/90 dark:bg-amber-900/40 dark:md:bg-amber-900/20 md:backdrop-blur-md border border-amber-200/70 dark:border-amber-800/50 rounded-3xl p-8 md:p-10 relative overflow-hidden">
             <div class="absolute -right-6 -top-6 opacity-[0.07] pointer-events-none">
               <span class="material-symbols-outlined text-amber-600" style="font-size:160px">shield_person</span>
             </div>
@@ -294,32 +281,32 @@ function navigateToUstadz(id) {
               <span class="material-symbols-outlined text-amber-600" style="font-size:120px">pending_actions</span>
             </div>
             <div class="relative z-10 flex flex-col items-center text-center">
-              <div class="w-14 h-14 md:w-[72px] md:h-[72px] bg-white dark:bg-zinc-900 rounded-2xl shadow-md flex items-center justify-center mb-4 md:mb-6 rotate-3">
-                <span class="material-symbols-outlined text-amber-500 animate-pulse !text-[28px] md:!text-[36px]"
-                  style="font-variation-settings:'FILL' 1">lock_person</span>
+              <div class="w-[72px] h-[72px] bg-white dark:bg-zinc-900 rounded-2xl shadow-md flex items-center justify-center mb-6 rotate-3">
+                <span class="material-symbols-outlined text-amber-500 animate-pulse"
+                  style="font-size:36px; font-variation-settings:'FILL' 1">lock_person</span>
               </div>
-              <h4 class="text-lg md:text-xl font-extrabold font-headline text-amber-900 dark:text-amber-400 mb-2">
+              <h4 class="text-xl font-extrabold font-headline text-amber-900 dark:text-amber-400 mb-2">
                 Moderasi Sedang Berlangsung
               </h4>
-              <p class="text-amber-800/70 dark:text-amber-500 max-w-sm mx-auto leading-relaxed text-xs md:text-sm mb-5 md:mb-8">
+              <p class="text-amber-800/70 dark:text-amber-500 max-w-sm mx-auto leading-relaxed text-sm mb-8">
                 Pertanyaan antum saat ini sedang dalam antrean moderasi oleh tim admin kami.
                 Terima kasih atas kesabaran Anda.
               </p>
-              <div class="grid grid-cols-2 gap-2 md:gap-3 w-full max-w-xs">
-                <div class="p-3 md:p-4 bg-white/80 dark:bg-zinc-800/80 rounded-2xl flex flex-col items-center gap-1.5 border border-amber-100 dark:border-amber-900/50">
-                  <span class="material-symbols-outlined text-amber-500 !text-[18px] md:!text-[22px]">pending_actions</span>
+              <div class="grid grid-cols-2 gap-3 w-full max-w-xs">
+                <div class="p-4 bg-white/80 dark:bg-zinc-800/80 rounded-2xl flex flex-col items-center gap-1.5 border border-amber-100 dark:border-amber-900/50">
+                  <span class="material-symbols-outlined text-amber-500" style="font-size:22px">pending_actions</span>
                   <span class="text-[9px] uppercase font-bold tracking-widest text-amber-700/60 dark:text-amber-600">Status</span>
                   <span class="text-xs font-bold text-amber-900 dark:text-amber-400">Dalam Antrean</span>
                 </div>
-                <div class="p-3 md:p-4 bg-white/80 dark:bg-zinc-800/80 rounded-2xl flex flex-col items-center gap-1.5 border border-amber-100 dark:border-amber-900/50">
-                  <span class="material-symbols-outlined text-amber-500 !text-[18px] md:!text-[22px]">help_center</span>
+                <div class="p-4 bg-white/80 dark:bg-zinc-800/80 rounded-2xl flex flex-col items-center gap-1.5 border border-amber-100 dark:border-amber-900/50">
+                  <span class="material-symbols-outlined text-amber-500" style="font-size:22px">help_center</span>
                   <span class="text-[9px] uppercase font-bold tracking-widest text-amber-700/60 dark:text-amber-600">Bantuan</span>
                   <span class="text-xs font-bold text-amber-900 dark:text-amber-400">Lihat FAQ</span>
                 </div>
               </div>
             </div>
           </div>
-          <div class="mt-4 md:mt-5 flex items-start gap-3 px-1">
+          <div class="mt-5 flex items-start gap-3 px-1">
             <div class="w-[3px] self-stretch bg-amber-200 dark:bg-amber-800 rounded-full shrink-0 mt-0.5"></div>
             <p class="text-xs text-outline/80 dark:text-white leading-relaxed italic">
               Proses moderasi biasanya membutuhkan waktu 1–3 hari kerja. antum akan mendapat notifikasi
@@ -330,18 +317,18 @@ function navigateToUstadz(id) {
 
         <!-- [2] VERIFIED -->
         <section v-else-if="q.status === 'verified'">
-          <div class="bg-surface-container-low/95 md:bg-surface-container-low/90 dark:bg-zinc-900/95 dark:md:bg-zinc-900/80 md:backdrop-blur-md border border-white/60 dark:border-zinc-800 rounded-3xl p-5 md:p-10 relative overflow-hidden">
+          <div class="bg-surface-container-low/95 md:bg-surface-container-low/90 dark:bg-zinc-900/95 dark:md:bg-zinc-900/80 md:backdrop-blur-md border border-white/60 dark:border-zinc-800 rounded-3xl p-8 md:p-10 relative overflow-hidden">
             <div class="absolute -right-8 -top-8 opacity-[0.05] pointer-events-none">
               <span class="material-symbols-outlined" style="font-size:160px">mosque</span>
             </div>
             <div class="relative z-10 flex flex-col items-center text-center">
-              <div class="w-14 h-14 md:w-[72px] md:h-[72px] bg-white dark:bg-zinc-800 rounded-2xl shadow-sm flex items-center justify-center mb-4 md:mb-6 -rotate-2">
-                <span class="material-symbols-outlined text-primary animate-pulse !text-[28px] md:!text-[36px]">hourglass_empty</span>
+              <div class="w-[72px] h-[72px] bg-white dark:bg-zinc-800 rounded-2xl shadow-sm flex items-center justify-center mb-6 -rotate-2">
+                <span class="material-symbols-outlined text-primary animate-pulse" style="font-size:36px">hourglass_empty</span>
               </div>
-              <h4 class="text-lg md:text-xl font-extrabold font-headline text-on-surface dark:text-zinc-100 mb-2">
+              <h4 class="text-xl font-extrabold font-headline text-on-surface dark:text-zinc-100 mb-2">
                 Menunggu Jawaban Ustadz
               </h4>
-              <p class="text-on-surface-variant dark:text-zinc-400 max-w-sm mx-auto leading-relaxed text-xs md:text-sm mb-5 md:mb-8">
+              <p class="text-on-surface-variant dark:text-zinc-400 max-w-sm mx-auto leading-relaxed text-sm mb-8">
                 Pertanyaan antum telah
                 <UiShinyText
                   text="Terverifikasi"
@@ -356,16 +343,16 @@ function navigateToUstadz(id) {
               />
                 oleh tim admin kami dan saat ini berada dalam antrean untuk dijawab oleh Ustadz pilihan.
               </p>
-              <div class="grid grid-cols-3 gap-2 md:gap-3 w-full">
+              <div class="grid grid-cols-3 gap-3 w-full">
                 <div v-for="item in [
                   {icon:'fact_check', label:'Status', val:'Tervalidasi'},
                   {icon:'group', label:'Antrean', val:'Sesuai Urutan'},
                   {icon:'notifications_active', label:'Notifikasi', val:'Akan Dikirim'},
                 ]" :key="item.label"
-                  class="p-2.5 md:p-3.5 bg-white/70 dark:bg-zinc-800/70 rounded-2xl flex flex-col items-center gap-1.5">
-                  <span class="material-symbols-outlined text-primary !text-[18px] md:!text-[22px]">{{ item.icon }}</span>
+                  class="p-3.5 bg-white/70 dark:bg-zinc-800/70 rounded-2xl flex flex-col items-center gap-1.5">
+                  <span class="material-symbols-outlined text-primary" style="font-size:22px">{{ item.icon }}</span>
                   <span class="text-[9px] uppercase font-bold tracking-widest text-outline dark:text-zinc-500">{{ item.label }}</span>
-                  <span class="text-[11px] md:text-xs font-bold dark:text-zinc-300">{{ item.val }}</span>
+                  <span class="text-xs font-bold dark:text-zinc-300">{{ item.val }}</span>
                 </div>
               </div>
             </div>
@@ -377,14 +364,14 @@ function navigateToUstadz(id) {
           <article class="relative bg-surface-container-lowest/95 md:bg-surface-container-lowest/85 dark:bg-zinc-900/95 dark:md:bg-zinc-900/85 md:backdrop-blur-md rounded-3xl overflow-hidden
                           shadow-[0px_16px_48px_rgba(20,28,43,0.08)] dark:shadow-[0px_16px_48px_rgba(0,0,0,0.4)] border border-outline-variant/10 dark:border-zinc-800">
             <div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
-            <div class="p-4 md:p-10 pl-5 md:pl-11">
+            <div class="p-7 md:p-10 pl-8 md:pl-11">
               <!-- Ustadz Header -->
 <div 
   :class="{ 'opacity-60 cursor-not-allowed': !q?.answered_by_profile?.id }"
   @click="navigateToUstadz(q?.answered_by_profile?.id)"
-  class="flex flex-col sm:flex-row sm:items-center gap-3 md:gap-4 mb-5 md:mb-8 pb-5 md:pb-7 border-b border-outline-variant/10 dark:border-zinc-800 hover:bg-surface-container-low/30 dark:hover:bg-zinc-800/30 transition-colors duration-200 rounded-2xl p-3 md:p-4 -mx-3 md:-mx-4 cursor-pointer group"
+  class="flex flex-col sm:flex-row sm:items-center gap-4 mb-8 pb-7 border-b border-outline-variant/10 dark:border-zinc-800 hover:bg-surface-container-low/30 dark:hover:bg-zinc-800/30 transition-colors duration-200 rounded-2xl p-4 -mx-4 cursor-pointer group"
 >
-  <div class="w-12 h-12 md:w-16 md:h-16 rounded-2xl shadow-sm shrink-0 overflow-hidden bg-primary/10 flex items-center justify-center group-hover:ring-2 group-hover:ring-primary/30 transition-shadow">
+  <div class="w-16 h-16 rounded-2xl shadow-sm shrink-0 overflow-hidden bg-primary/10 flex items-center justify-center group-hover:ring-2 group-hover:ring-primary/30 transition-shadow">
     <img 
       v-if="q?.answered_by_profile?.avatar_url && q?.answered_by_profile?.avatar_url.length > 15"
       :src="q.answered_by_profile.avatar_url"
@@ -392,19 +379,19 @@ function navigateToUstadz(id) {
       class="w-full h-full object-cover"
       @error="(e) => handleAvatarError(e, ustadzAvatar.avatarUrl)"
     />
-    <span v-else class="text-white font-bold text-xl md:text-2xl">
+    <span v-else class="text-white font-bold text-2xl">
       {{ ustadzAvatar.initial }}
     </span>
   </div>
 
   <div class="flex-1 min-w-0">
-    <h3 class="font-headline font-bold text-base md:text-xl text-primary leading-tight group-hover:text-primary-fixed transition-colors">
+    <h3 class="font-headline font-bold text-xl text-primary leading-tight group-hover:text-primary-fixed transition-colors">
       Dijawab oleh Ustadz {{ q?.answered_by_profile?.full_name ?? 'Ustadz Tidak Diketahui' }}
     </h3>
-    <p class="text-xs md:text-sm text-outline dark:text-zinc-500 mt-0.5 group-hover:text-on-surface-variant transition-colors">Ustadz Ahli</p>
+    <p class="text-sm text-outline dark:text-zinc-500 mt-0.5 group-hover:text-on-surface-variant transition-colors">Ustadz Ahli</p>
   </div>
 
-  <div class="shrink-0 flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 px-2.5 py-1 md:px-3 md:py-1.5 rounded-lg self-start sm:self-center group-hover:bg-primary/10 group-hover:border-primary/30 transition-colors">
+  <div class="shrink-0 flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 px-3 py-1.5 rounded-lg self-start sm:self-center group-hover:bg-primary/10 group-hover:border-primary/30 transition-colors">
     <span class="material-symbols-outlined text-primary group-hover:text-primary-fixed transition-colors" style="font-size:15px; font-variation-settings:'FILL' 1">verified</span>
     <span class="text-[10px] font-extrabold text-primary uppercase tracking-widest group-hover:text-primary-fixed transition-colors">Terverifikasi</span>
   </div>
@@ -415,14 +402,14 @@ function navigateToUstadz(id) {
                           prose-strong:text-on-surface dark:prose-strong:text-zinc-100
                           prose-em:text-on-surface-variant dark:prose-em:text-zinc-400
                           prose-blockquote:border-l-4 prose-blockquote:border-emerald-200 dark:prose-blockquote:border-emerald-800
-                          prose-blockquote:bg-surface-container-low dark:prose-blockquote:bg-zinc-800 prose-blockquote:px-4 md:prose-blockquote:px-6 prose-blockquote:py-3 md:prose-blockquote:py-4
-                          prose-blockquote:rounded-r-2xl prose-blockquote:text-on-surface-variant prose-blockquote:italic prose-blockquote:my-5 md:prose-blockquote:my-8
+                          prose-blockquote:bg-surface-container-low dark:prose-blockquote:bg-zinc-800 prose-blockquote:px-6 prose-blockquote:py-4
+                          prose-blockquote:rounded-r-2xl prose-blockquote:text-on-surface-variant prose-blockquote:italic prose-blockquote:my-8
                           prose-ol:pl-5 prose-li:leading-relaxed prose-p:mb-4 whitespace-pre-line"
                 v-html="q.answer">
               </div>
 
               <!-- Date footer -->
-              <div class="mt-5 md:mt-8 pt-4 md:pt-6 border-t border-outline-variant/10 dark:border-zinc-800 flex items-center gap-2 text-outline dark:text-zinc-500">
+              <div class="mt-8 pt-6 border-t border-outline-variant/10 dark:border-zinc-800 flex items-center gap-2 text-outline dark:text-zinc-500">
                 <span class="material-symbols-outlined" style="font-size:15px">calendar_today</span>
                 <span class="text-xs">Dijawab pada {{ formatDate(q.created_at) }}</span>
               </div>

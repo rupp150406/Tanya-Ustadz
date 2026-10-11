@@ -39,15 +39,6 @@ const detailToSteps = (detail: GradientWavesDetail): number => {
   return 70.0;
 };
 
-// Phones / touch devices: render at (at most) this pixel ratio. The shader is a raymarcher run per pixel,
-// so 2x dpr = 4x the work. The waves are soft gradients, so 1 is visually almost identical. Raise it if you want it sharper.
-const MOBILE_DPR_CAP = 1;
-
-// Touch devices: which screen edge the (taller-than-visible) canvas stays glued to.
-// When the browser toolbar slides away, the edge NEXT TO the toolbar moves on screen; the opposite edge stays put.
-// Toolbar on top (default for Chrome / Brave on Android) → 'bottom'. Toolbar at the bottom → 'top'.
-const MOBILE_ANCHOR: 'top' | 'bottom' = 'bottom';
-
 const vertex = `#version 300 es
 in vec2 position;
 void main() {
@@ -296,15 +287,12 @@ onMounted(() => {
   const container = containerRef.value;
   if (!container) return;
 
-  // Touch devices only. Desktop behaves exactly as before.
-  const isMobile = window.matchMedia('(pointer: coarse)').matches;
-
   const renderer = new Renderer({
     webgl: 2,
     alpha: true,
     premultipliedAlpha: true,
     antialias: false,
-    dpr: Math.min(window.devicePixelRatio || 1, isMobile ? MOBILE_DPR_CAP : 2)
+    dpr: Math.min(window.devicePixelRatio || 1, 2)
   });
 
   const gl = renderer.gl;
@@ -314,13 +302,6 @@ onMounted(() => {
   canvas.style.height = '100%';
   canvas.style.display = 'block';
   container.appendChild(canvas);
-  if (isMobile) {
-    // Glue the canvas to one edge so the waves stay still on screen while the toolbar slides in/out.
-    // The extra height (we render the tallest viewport) is clipped at the opposite edge by the container.
-    canvas.style.position = 'absolute';
-    canvas.style.left = '0';
-    canvas.style[MOBILE_ANCHOR] = '0';
-  }
 
   const geometry = new Triangle(gl);
   const localProgram = new Program(gl, {
@@ -357,35 +338,10 @@ onMounted(() => {
 
   const mesh = new Mesh(gl, { geometry, program: localProgram });
 
-  // Mobile only: while you scroll, the browser address bar slides in/out and the fixed container's
-  // HEIGHT changes a little. Re-sizing the canvas each time re-fits the shader (iResolution) → the waves
-  // visibly jump, and reallocating the buffer mid-scroll also drops frames.
-  // So on phones we size the canvas ONCE to the tallest viewport (100lvh) and ignore height-only changes.
-  // The extra bottom part is simply clipped by the container (overflow-hidden).
-  let lockedW = 0;
-  let lockedH = 0;
-  let lvhProbe: HTMLDivElement | null = null;
-  const getLargeViewportHeight = () => {
-    if (!lvhProbe) {
-      lvhProbe = document.createElement('div');
-      lvhProbe.style.cssText =
-        'position:fixed;top:0;left:0;width:0;height:100lvh;visibility:hidden;pointer-events:none;';
-      document.body.appendChild(lvhProbe);
-    }
-    return lvhProbe.offsetHeight || window.innerHeight; // fallback if lvh is unsupported
-  };
-
   const setSize = () => {
     const rect = container.getBoundingClientRect();
     const w = Math.max(1, Math.floor(rect.width));
-    let h = Math.max(1, Math.floor(rect.height));
-    if (isMobile) {
-      const sameWidth = w === lockedW; // width changes = rotation → resize for real
-      if (sameWidth && lockedH >= h) return; // address bar moved: keep the canvas exactly as it is
-      h = Math.max(h, getLargeViewportHeight(), sameWidth ? lockedH : 0);
-      lockedW = w;
-      lockedH = h;
-    }
+    const h = Math.max(1, Math.floor(rect.height));
     renderer.setSize(w, h);
     const res = mu.iResolution.value;
     res[0] = gl.drawingBufferWidth;
@@ -402,7 +358,6 @@ onMounted(() => {
 
   const onPointerMove = (e: PointerEvent) => {
     if (!canvas) return;
-    if (e.pointerType === 'touch') return; // a finger scrolling must not tilt the camera
     const rect = canvas.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
     targetMouse[0] = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -471,8 +426,6 @@ onMounted(() => {
     window.removeEventListener('pointermove', onPointerMove);
     document.removeEventListener('mouseleave', onPointerLeave);
     program = null;
-    lvhProbe?.remove();
-    lvhProbe = null;
     try {
       container.removeChild(canvas);
     } catch {

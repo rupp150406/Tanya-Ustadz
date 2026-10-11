@@ -180,28 +180,9 @@ const hasCardAvatar = (q) =>
 // ─────────────────────────────────────────────────────────────
 // LIFECYCLE — QUESTIONS ONLY
 // ─────────────────────────────────────────────────────────────
-// true until the first fetch finishes → shows skeleton cards instead of the "empty" message
-const loading = ref(true)
-
-// Waits for the web fonts (max 2s) so icons never flash as raw words like "search".
-const fontsReady = () => {
-  if (!document.fonts?.load) return Promise.resolve()
-  const loads = Promise.all([
-    document.fonts.load("24px 'Material Symbols Outlined'", 'search'),
-    document.fonts.load("700 16px Manrope"),
-    document.fonts.load("400 16px 'Plus Jakarta Sans'"),
-  ]).then(() => document.fonts.ready).catch(() => {})
-  return Promise.race([loads, new Promise(r => setTimeout(r, 2000))])
-}
-
 onMounted(async () => {
-  try {
-    await getFingerprint()
-    await fetchPublic('all', fingerprint.value)
-  } finally {
-    await fontsReady()
-    loading.value = false
-  }
+  await getFingerprint()
+  await fetchPublic('all', fingerprint.value)
   subscribeRealtime('jemaah')
 })
 
@@ -288,8 +269,7 @@ const getStatusLabel = (s) =>
       <header class="bg-surface/95 dark:bg-zinc-950/95 md:bg-surface/70 dark:md:bg-zinc-950/80 md:backdrop-blur-md sticky top-0 z-50 shadow-sm bg-gradient-to-b from-slate-100/10 dark:from-zinc-800/10 to-transparent border-b border-transparent dark:border-zinc-800/50">
         <div class="flex justify-between items-center w-full px-6 py-3 max-w-screen-2xl mx-auto">
           <div class="flex items-center gap-4">
-            <div v-if="loading" class="sk h-7 w-36 rounded-lg animate-pulse motion-reduce:animate-none"></div>
-            <NuxtLink v-else to="/" class="text-2xl font-bold tracking-tighter text-emerald-800 dark:text-emerald-400 font-headline">
+            <NuxtLink to="/" class="text-2xl font-bold tracking-tighter text-emerald-800 dark:text-emerald-400 font-headline">
               <UiShinyText
                 text="Tanya Ustadz"
                 :speed="2"
@@ -306,12 +286,10 @@ const getStatusLabel = (s) =>
 
           <div class="flex items-center gap-3">
             <!-- Theme Toggle -->
-            <div v-if="loading" class="sk w-10 h-10 rounded-full animate-pulse motion-reduce:animate-none"></div>
-            <UiThemeToggle v-show="!loading" />
+            <UiThemeToggle />
 
             <!-- Avatar area -->
-            <div v-if="loading && shouldShowAvatar" class="sk w-11 h-11 rounded-full animate-pulse motion-reduce:animate-none"></div>
-            <div v-else-if="shouldShowAvatar" class="relative group/avatar">
+            <div v-if="shouldShowAvatar" class="relative group/avatar">
               <button
                 @click="handleAvatarClick"
                 class="relative flex items-center justify-center w-11 h-11 rounded-full overflow-hidden border-2 border-[#A6F55B]/30 shadow-md hover:ring-2 hover:ring-[#A6F55B] hover:scale-105 transition-all duration-300 cursor-pointer bg-emerald-900"
@@ -369,8 +347,7 @@ const getStatusLabel = (s) =>
       <div class="max-w-6xl w-full mx-auto px-4 py-8">
 
         <div class="mb-8 max-w-2xl mx-auto">
-          <div v-if="loading" class="sk h-14 w-full rounded-full animate-pulse motion-reduce:animate-none"></div>
-          <div v-else class="relative group">
+          <div class="relative group">
             <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
               <span class="material-symbols-outlined text-outline dark:text-zinc-500 group-focus-within:text-primary transition-colors">search</span>
             </div>
@@ -383,11 +360,7 @@ const getStatusLabel = (s) =>
           </div>
         </div>
 
-        <div v-if="loading" class="mb-10 rounded-[2rem] h-52 flex flex-col justify-end p-8 bg-surface-container-lowest/85 dark:bg-zinc-900/85 border border-outline-variant/10 dark:border-zinc-800 animate-pulse motion-reduce:animate-none">
-          <div class="sk h-3 w-32 rounded mb-3"></div>
-          <div class="sk h-6 w-3/4 rounded-lg"></div>
-        </div>
-        <div v-show="!loading" class="mb-10 relative overflow-hidden rounded-[2rem] bg-primary h-52 flex flex-col justify-end p-8 shadow-xl shadow-primary/10 transition-transform md:hover:scale-[1.01] duration-500">
+        <div class="mb-10 relative overflow-hidden rounded-[2rem] bg-primary h-52 flex flex-col justify-end p-8 shadow-xl shadow-primary/10 transition-transform md:hover:scale-[1.01] duration-500">
           <div class="absolute inset-0">
             <img decoding="async" class="w-full h-full object-cover" src="https://chwjmwuqdbcmgnascxfg.supabase.co/storage/v1/object/sign/just%20me/green-2.webp?token=eyJraWQiOiIwOGQ0ZmUxMi1lYmVhLTQwMTUtODg1NS1hMjQ1NjEyYjU5NzkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJqdXN0IG1lL2dyZWVuLTIud2VicCIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3OTEzNzQ2NDksImV4cCI6MjQyMjA5NDY0OX0.un6uz_7p03FcNP6UbDV1s9HbvxWzBVtsj83rsCFWrtI" />
             <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
@@ -408,10 +381,7 @@ const getStatusLabel = (s) =>
           </div>
         </div>
 
-        <div v-if="loading" class="flex justify-center mb-10">
-          <div class="sk h-12 w-full max-w-sm rounded-full animate-pulse motion-reduce:animate-none"></div>
-        </div>
-        <nav v-show="!loading" class="flex justify-center mb-10">
+        <nav class="flex justify-center mb-10">
           <!-- `relative` so the sliding pill and tab offsets are measured from this box -->
           <div
             ref="navRef"
@@ -440,41 +410,7 @@ const getStatusLabel = (s) =>
 
         <!-- FIX: min-height keeps the page height stable when the list gets short -->
         <div class="min-h-[60vh]">
-          <!-- SKELETON: same card shape, 3 on phones / 6 on md+. One pulse per card (cheap). -->
-          <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 gap-6" aria-busy="true" aria-label="Memuat pertanyaan">
-            <div
-              v-for="n in 6"
-              :key="n"
-              :class="n > 3 ? 'hidden md:flex' : 'flex'"
-              class="h-full flex-col bg-surface-container-lowest/85 dark:bg-zinc-900/85 rounded-3xl p-4 md:p-6 relative overflow-hidden border border-outline-variant/10 dark:border-zinc-800 animate-pulse motion-reduce:animate-none"
-            >
-              <div class="absolute top-0 left-0 w-1 h-full sk"></div>
-              <div class="flex justify-between items-start mb-3 md:mb-4">
-                <div class="sk h-5 w-16 rounded"></div>
-                <div class="sk h-3 w-20 rounded mt-1"></div>
-              </div>
-              <div class="space-y-2 mb-4 md:mb-6">
-                <div class="sk h-4 md:h-5 w-full rounded"></div>
-                <div class="sk h-4 md:h-5 w-2/3 rounded"></div>
-              </div>
-              <div class="flex items-center gap-2.5 md:gap-3 p-3 md:p-4 rounded-2xl bg-surface-container-low/60 dark:bg-zinc-800/60 mb-3 md:mb-4">
-                <div class="sk w-9 h-9 md:w-10 md:h-10 rounded-full shrink-0"></div>
-                <div class="space-y-1.5">
-                  <div class="sk h-3 w-28 rounded"></div>
-                  <div class="sk h-2.5 w-16 rounded"></div>
-                </div>
-              </div>
-              <div class="space-y-2 mb-3 md:mb-4 px-1">
-                <div class="sk h-3 w-full rounded"></div>
-                <div class="sk h-3 w-5/6 rounded"></div>
-              </div>
-              <div class="flex items-center justify-between mt-auto pt-3 md:pt-4 border-t border-outline-variant/10 dark:border-zinc-800">
-                <div class="sk h-3 w-24 rounded"></div>
-              </div>
-            </div>
-          </div>
-
-          <div v-else-if="filteredQuestions.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div v-if="filteredQuestions.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- threshold -100 = the scroll trigger starts far below the page, so it is already "reached"
                  and the cards animate right away. Only the first ANIMATED_CARDS actually animate (cheaper on phones). -->
             <AnimatedContent
@@ -494,14 +430,14 @@ const getStatusLabel = (s) =>
             >
             <NuxtLink
               :to="`/questions/${q.id}`"
-              class="h-full bg-surface-container-lowest/85 dark:bg-zinc-900/85 md:backdrop-blur-md rounded-3xl p-4 md:p-6 relative overflow-hidden shadow-[0px_12px_32px_rgba(20,28,43,0.04)] dark:shadow-[0px_12px_32px_rgba(0,0,0,0.3)] border border-outline-variant/10 dark:border-zinc-800 md:hover:shadow-xl md:hover:shadow-primary/5 transition-shadow duration-300 group/card flex flex-col cursor-pointer"
+              class="h-full bg-surface-container-lowest/85 dark:bg-zinc-900/85 md:backdrop-blur-md rounded-3xl p-6 relative overflow-hidden shadow-[0px_12px_32px_rgba(20,28,43,0.04)] dark:shadow-[0px_12px_32px_rgba(0,0,0,0.3)] border border-outline-variant/10 dark:border-zinc-800 md:hover:shadow-xl md:hover:shadow-primary/5 transition-shadow duration-300 group/card flex flex-col cursor-pointer"
             >
               <div :class="[
                 q.status === 'answered' ? 'bg-primary' :
                 q.status === 'verified' ? 'bg-cyan-500' : 'bg-amber-500'
               ]" class="absolute top-0 left-0 w-1 h-full transition-[width] md:group-hover/card:w-1.5"></div>
 
-              <div class="flex justify-between items-start mb-3 md:mb-4">
+              <div class="flex justify-between items-start mb-4">
                 <span :class="q.status === 'answered' ? 'text-primary bg-secondary-container/30 dark:bg-primary/10 dark:text-emerald-400' : 'text-amber-800 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300'"
                       class="text-[10px] font-bold px-2 py-1 rounded">
                   {{ getUserBadge(q.fingerprint) }}
@@ -511,13 +447,13 @@ const getStatusLabel = (s) =>
                 </div>
               </div>
 
-              <h3 class="font-headline text-on-surface dark:text-zinc-100 font-bold text-base md:text-lg mb-4 md:mb-6 leading-snug group-hover/card:text-primary transition-colors line-clamp-2">
+              <h3 class="font-headline text-on-surface dark:text-zinc-100 font-bold text-lg mb-6 leading-snug group-hover/card:text-primary transition-colors line-clamp-2">
                 {{ q.question }}
               </h3>
 
               <template v-if="q.status === 'answered'">
-                <div class="flex items-center gap-2.5 md:gap-3 p-3 md:p-4 rounded-2xl bg-surface-container-low dark:bg-zinc-800 mb-3 md:mb-4">
-                  <div class="w-9 h-9 md:w-10 md:h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold text-xs ring-2 ring-white dark:ring-zinc-900 overflow-hidden shrink-0">
+                <div class="flex items-center gap-3 p-4 rounded-2xl bg-surface-container-low dark:bg-zinc-800 mb-4">
+                  <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold text-xs ring-2 ring-white dark:ring-zinc-900 overflow-hidden shrink-0">
                     <!-- FIX: own error state per card + no-referrer, no longer touches the header avatar -->
                     <img
                       v-if="hasCardAvatar(q)"
@@ -536,11 +472,11 @@ const getStatusLabel = (s) =>
                     <p class="text-[10px] text-outline dark:text-zinc-500 italic">Jawaban Ustadz</p>
                   </div>
                 </div>
-                <p class="text-[13px] md:text-sm text-on-surface-variant dark:text-zinc-400 line-clamp-3 leading-relaxed italic mb-3 md:mb-4 px-1">"{{ q.answer }}"</p>
+                <p class="text-sm text-on-surface-variant dark:text-zinc-400 line-clamp-3 leading-relaxed italic mb-4 px-1">"{{ q.answer }}"</p>
               </template>
 
               <template v-else>
-                <div class="flex items-center gap-2 p-3 rounded-xl border-2 border-dashed mb-4 md:mb-6 transition-colors"
+                <div class="flex items-center gap-2 p-3 rounded-xl border-2 border-dashed mb-6 transition-colors"
                      :class="q.status === 'verified' ? 'border-cyan-200 dark:border-cyan-800 bg-cyan-50 dark:bg-cyan-900/20' : 'border-outline-variant/30 dark:border-zinc-700 bg-surface-container-low dark:bg-zinc-800/50'">
                   <span class="material-symbols-outlined text-lg"
                         :class="q.status === 'pending' ? 'text-amber-500 animate-spin' : 'text-cyan-600 dark:text-cyan-400'">
@@ -552,7 +488,7 @@ const getStatusLabel = (s) =>
                 </div>
               </template>
 
-              <div class="flex items-center justify-between mt-auto pt-3 md:pt-4 border-t border-outline-variant/10 dark:border-zinc-800">
+              <div class="flex items-center justify-between mt-auto pt-4 border-t border-outline-variant/10 dark:border-zinc-800">
                 <span v-if="q.status === 'answered'" class="text-primary text-xs font-bold flex items-center gap-1 group/btn">
                   Baca Selengkapnya
                   <span class="material-symbols-outlined text-sm group-hover/btn:translate-x-1 transition-transform">arrow_forward</span>
@@ -581,9 +517,7 @@ const getStatusLabel = (s) =>
       </div>
 
       <div class="fixed bottom-8 right-8 z-50">
-        <div v-if="loading" class="sk h-16 w-44 rounded-full shadow-xl animate-pulse motion-reduce:animate-none"></div>
         <NuxtLink
-          v-else
           to="/ask"
           class="bg-gradient-to-br from-primary to-primary-container text-white h-16 px-8 rounded-full shadow-2xl flex items-center gap-3 md:hover:scale-105 active:scale-95 transition-transform duration-300 group/fab"
         >
@@ -593,14 +527,6 @@ const getStatusLabel = (s) =>
       </div>
 
       <footer class="mt-auto pt-10 pb-8 border-t border-outline-variant/15 dark:border-zinc-800 text-center">
-        <div v-if="loading" class="animate-pulse motion-reduce:animate-none">
-          <div class="max-w-md mx-auto px-4 mb-6 space-y-2">
-            <div class="sk h-3 w-full rounded"></div>
-            <div class="sk h-3 w-2/3 mx-auto rounded"></div>
-          </div>
-          <div class="sk h-2.5 w-56 mx-auto rounded mt-10"></div>
-        </div>
-        <template v-else>
         <p class="max-w-md mx-auto italic text-on-surface-variant/50 dark:text-white font-body text-sm mb-6 px-4 leading-relaxed">
           "Sesungguhnya amalan yang paling dicintai Allah adalah amalan yang berkelanjutan (istiqomah) walaupun sedikit."
           <span class="not-italic font-semibold text-outline dark:text-white">(HR. Muslim)</span>
@@ -614,7 +540,6 @@ const getStatusLabel = (s) =>
             <NuxtLink to="/terms" class="hover:text-primary transition-colors">Syarat dan Ketentuan</NuxtLink>
           </div>
         </div>
-        </template>
       </footer>
     </div>
   </main>
@@ -645,10 +570,6 @@ body { margin: 0; background-color: #f9f9ff; }
 .font-body { font-family: 'Plus Jakarta Sans', sans-serif; }
 
 a { text-decoration: none; color: inherit; }
-
-/* skeleton blocks */
-.sk { background-color: rgba(148, 163, 184, 0.22); }
-.dark .sk { background-color: rgba(63, 63, 70, 0.7); }
 
 /* FIX: hide the page scrollbar on <html> only.
    The old rules used :deep() in a non-scoped <style> (invalid, ignored)

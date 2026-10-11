@@ -5,19 +5,19 @@ import GradientWaves from '~/components/ui/GradientWaves.vue'
 import UiShinyText from '~/components/ui/ShinyText.vue'
 import SwipeToast from '~/components/ui/SwipeToast.vue'
 import GooeyNav from '~/components/ui/GooeyNav.vue'
-import { useLowPower } from '~/composables/useLowpower'
 import { DotLottieVue } from '@lottiefiles/dotlottie-vue'
+const { initTheme } = useTheme()
 const { addQuestion, fetchPublic, pending: isSubmitting } = useQuestions()
 const { fingerprint, getFingerprint } = useFingerprint()
 const { connect, checkConnection, isConnected } = useTelegram()
 const { initFCM } = useFCM()
 const { lowPower, bgReady, detect } = useLowPower() // phone / touch / reduce-motion mode
+const SHINY_TEXT = false // true = shiny text animation on, false = static text (both ShinyText on this page)
 
 // ─── DEV PREVIEW (remove before production) ───────────────────
 // ONE flag for BOTH preview buttons (Telegram toast + "question sent" popup):
 //   true  = buttons visible (testing)
 //   false = buttons hidden (production)
-const { initTheme } = useTheme()
 const SHOW_PREVIEW_BUTTON = false
 const previewConnected = ref(false)
 
@@ -206,7 +206,7 @@ const handleSubmit = async () => {
                 :spread="120"
                 direction="left"
                 :yoyo="false"
-                :pause-on-hover="false" :disabled=false
+                :pause-on-hover="false" :disabled="!SHINY_TEXT"
               />
             </NuxtLink>
           </div>
@@ -229,7 +229,7 @@ const handleSubmit = async () => {
                 :spread="120"
                 direction="left"
                 :yoyo="false"
-                :pause-on-hover="false" :disabled=false
+                :pause-on-hover="false" :disabled="!SHINY_TEXT"
               />
             </h1>
             <p class="text-on-surface-variant dark:text-zinc-400 text-lg max-w-md mx-auto leading-relaxed">
@@ -237,23 +237,23 @@ const handleSubmit = async () => {
             </p>
           </div>
 
-          <div class="bg-surface-container-lowest/85 dark:bg-zinc-900/85 md:backdrop-blur-md rounded-[2rem] shadow-[0px_12px_32px_rgba(20,28,43,0.06)] dark:shadow-[0px_12px_32px_rgba(0,0,0,0.4)] overflow-hidden p-8 md:p-12 border border-outline-variant/10 dark:border-zinc-800">
-          <div class="mb-8 flex items-center gap-3 p-4 rounded-xl bg-tertiary-fixed dark:bg-amber-900/20 text-on-tertiary-fixed-variant dark:text-amber-300">
-            <span class="material-symbols-outlined text-tertiary dark:text-amber-400">info</span>
-            <p class="text-sm font-medium">Batas bertanya: 5 pertanyaan setiap 5 menit untuk menjaga kualitas layanan.</p>
+          <div class="bg-surface-container-lowest/85 dark:bg-zinc-900/85 md:backdrop-blur-md rounded-3xl md:rounded-[2rem] shadow-[0px_12px_32px_rgba(20,28,43,0.06)] dark:shadow-[0px_12px_32px_rgba(0,0,0,0.4)] overflow-hidden px-4 pt-4 pb-6 md:p-12 border border-outline-variant/10 dark:border-zinc-800">
+          <div class="mb-4 md:mb-8 flex items-center gap-2.5 md:gap-3 p-3 md:p-4 rounded-xl bg-tertiary-fixed dark:bg-amber-900/20 text-on-tertiary-fixed-variant dark:text-amber-300">
+            <span class="material-symbols-outlined !text-[20px] md:!text-[24px] text-tertiary dark:text-amber-400">info</span>
+            <p class="text-xs md:text-sm leading-snug md:leading-normal font-medium">Batas bertanya: 5 pertanyaan setiap 5 menit untuk menjaga kualitas layanan.</p>
           </div>
 
-          <form @submit.prevent="handleSubmit" class="space-y-8">
-            <div class="space-y-4">
-              <label class="block font-headline font-bold text-sm uppercase tracking-widest ml-1">
+          <form @submit.prevent="handleSubmit" class="space-y-5 md:space-y-8">
+            <div class="space-y-2 md:space-y-4">
+              <label class="block font-headline font-bold text-xs md:text-sm uppercase tracking-wider md:tracking-widest ml-1">
                 Pilih Kategori
               </label>
 
-              <GooeyNav v-model="category" :items="categories" :disabled="isSubmitting" :lite=false />
+              <GooeyNav v-model="category" :items="categories" :disabled="isSubmitting" :lite="false" />
             </div>
 
-            <div class="space-y-4">
-              <label class="block font-headline font-bold text-sm uppercase tracking-widest ml-1">
+            <div class="space-y-2 md:space-y-4">
+              <label class="block font-headline font-bold text-xs md:text-sm uppercase tracking-wider md:tracking-widest ml-1">
                 Isi Pertanyaan
               </label>
               <div class="relative">
@@ -262,10 +262,10 @@ const handleSubmit = async () => {
                   :maxlength="maxChars"
                   :disabled="isSubmitting"
                   rows="4"
-                  class="w-full bg-surface-container-low/80 dark:bg-zinc-800/80 md:backdrop-blur-sm border border-outline-variant/20 dark:border-zinc-700/50 rounded-3xl p-6 focus:ring-2 focus:ring-primary/20 text-on-surface dark:text-zinc-100 placeholder:text-outline/60 dark:placeholder:text-zinc-500 resize-none disabled:opacity-50 transition-[box-shadow,opacity]"
+                  class="w-full bg-surface-container-low/80 dark:bg-zinc-800/80 md:backdrop-blur-sm border border-outline-variant/20 dark:border-zinc-700/50 rounded-2xl md:rounded-3xl p-4 md:p-6 focus:ring-2 focus:ring-primary/20 text-on-surface dark:text-zinc-100 placeholder:text-outline/60 dark:placeholder:text-zinc-500 resize-none disabled:opacity-50 transition-[box-shadow,opacity]"
                   placeholder="Tuliskan pertanyaan Anda..."
                 ></textarea>
-                <div class="absolute bottom-4 right-6 text-xs font-medium text-outline dark:text-zinc-500">
+                <div class="absolute bottom-3 right-4 md:bottom-4 md:right-6 text-xs font-medium text-outline dark:text-zinc-500">
                   <span>{{ charCount }}</span>/{{ maxChars }}
                 </div>
               </div>
@@ -274,7 +274,7 @@ const handleSubmit = async () => {
             <button
               type="submit"
               :disabled="isSubmitting"
-              class="w-full py-4 px-8 rounded-full bg-gradient-to-br from-primary to-primary-container text-white font-headline font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-transform md:hover:scale-[1.02] active:scale-95 disabled:opacity-70"
+              class="w-full py-3 md:py-4 px-6 md:px-8 rounded-full bg-gradient-to-br from-primary to-primary-container text-white font-headline font-bold text-base md:text-lg shadow-lg flex items-center justify-center gap-2 transition-transform md:hover:scale-[1.02] active:scale-95 disabled:opacity-70"
             >
               <span v-if="isSubmitting" class="material-symbols-outlined animate-spin">sync</span>
               <span v-else class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">send</span>
@@ -282,13 +282,13 @@ const handleSubmit = async () => {
             </button>
           </form>
 
-          <div class="mt-12 pt-8 border-t border-outline-variant/15 dark:border-zinc-700 text-center">
+          <div class="mt-6 md:mt-12 pt-5 md:pt-8 border-t border-outline-variant/15 dark:border-zinc-700 text-center">
             <div class="flex flex-col items-center gap-2">
-              <div class="w-12 h-12 rounded-full bg-secondary-container dark:bg-primary/10 flex items-center justify-center mb-2">
+              <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-secondary-container dark:bg-primary/10 flex items-center justify-center mb-1 md:mb-2">
                 <span class="material-symbols-outlined text-on-secondary-container dark:text-emerald-400">verified_user</span>
               </div>
-              <h3 class="font-headline font-bold">Apa yang terjadi setelah ini?</h3>
-              <p class="text-sm text-on-surface-variant dark:text-zinc-400 max-w-sm">
+              <h3 class="font-headline font-bold text-sm md:text-base">Apa yang terjadi setelah ini?</h3>
+              <p class="text-xs md:text-sm text-on-surface-variant dark:text-zinc-400 max-w-sm">
                 Pertanyaan antum akan ditinjau oleh tim admin kami sebelum dijawab oleh Ustadz.
               </p>
             </div>
@@ -296,7 +296,7 @@ const handleSubmit = async () => {
         </div>
       </div>
 
-        <footer class="mt-20 pt-10 pb-8 border-t border-outline-variant/15 dark:border-zinc-800 text-center">
+        <footer class="mt-12 md:mt-20 pt-10 pb-8 border-t border-outline-variant/15 dark:border-zinc-800 text-center">
           <p class="max-w-md mx-auto italic text-on-surface-variant/50 dark:text-white font-body text-sm mb-6 px-4 leading-relaxed">
             "Sesungguhnya amalan yang paling dicintai Allah adalah amalan yang berkelanjutan (istiqomah) walaupun sedikit."
             <span class="not-italic font-semibold text-outline dark:text-white">(HR. Muslim)</span>
