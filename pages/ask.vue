@@ -206,7 +206,7 @@ const handleSubmit = async () => {
                 :spread="120"
                 direction="left"
                 :yoyo="false"
-                :pause-on-hover="false" :disabled="!SHINY_TEXT"
+                :pause-on-hover="false" :disabled=false
               />
             </NuxtLink>
           </div>
@@ -229,7 +229,7 @@ const handleSubmit = async () => {
                 :spread="120"
                 direction="left"
                 :yoyo="false"
-                :pause-on-hover="false" :disabled="!SHINY_TEXT"
+                :pause-on-hover="false" :disabled=false
               />
             </h1>
             <p class="text-on-surface-variant dark:text-zinc-400 text-lg max-w-md mx-auto leading-relaxed">

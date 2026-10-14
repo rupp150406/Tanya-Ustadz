@@ -171,8 +171,6 @@ function navigateToUstadz(id) {
               />
             </NuxtLink>
 
-        <!-- Theme Toggle -->
-        <UiThemeToggle />
 
         <!-- Status chip -->
         <div class="shrink-0">
@@ -194,9 +192,8 @@ function navigateToUstadz(id) {
         </div>
 
         <!-- Ticket ID -->
-        <span v-if="q" class="text-[10px] font-bold uppercase tracking-wider text-outline dark:text-zinc-500 bg-surface-container dark:bg-zinc-800 px-2.5 py-1 rounded-full shrink-0">
-          #{{ getTicketId(q.id) }}
-        </span>
+        <!-- Theme Toggle -->
+        <UiThemeToggle />
       </div>
     </header>
 

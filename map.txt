@@ -1,0 +1,139 @@
+================================================================================
+                    MAP SISTEM NOTIFIKASI TANYA USTADZ
+================================================================================
+Daftar & relasi file pada `server/api/` dan `composables/` yang berhubungan
+dengan sistem notifikasi (Telegram Bot & Firebase Cloud Messaging / Web Push / Toast).
+
+================================================================================
+1. RINGKASAN FILE & FUNGSI UTAMA
+================================================================================
+
+📁 SERVER/API:
+├── server/api/notify.post.ts
+│   └── Dispatcher pengiriman notifikasi via Telegram Bot API ke penanya (user).
+│       Mencari `chat_id` di database berdasarkan `fingerprint` lalu mengirimkan pesan.
+│
+├── server/api/telegram/connect.post.ts
+│   └── Endpoint inisiasi koneksi Telegram untuk browser user.
+│       Menghasilkan temporary token (10 menit) & deep link bot Telegram (t.me/<bot>?start=<token>).
+│
+├── server/api/telegram/webhook.post.ts
+│   └── Webhook penerima event / command dari Telegram Bot API:
+│       - `/start <token>` : Validasi token & pasang `chat_id` ke fingerprint user.
+│       - `/start`         : Instruksi penggunaan.
+│       - `/status`        : Cek status koneksi Telegram.
+│       - `/restart`       : Unlink / reset koneksi Telegram.
+│
+├── server/api/ustadz/answer.post.ts (Trigger)
+│   └── Menyimpan jawaban ustadz ke database `questions`.
+│       Jika berhasil dan pertanyaan memiliki `fingerprint`, otomatis memanggil:
+│       `POST /api/notify` dengan role 'user'.
+│
+└── server/api/admin/moderate.post.ts (Trigger - Legacy/Disabled)
+    └── Menyetujui pertanyaan (status -> 'verified').
+        Memanggil `POST /api/notify` dengan role 'ustadz' (saat ini broadcast staff dinonaktifkan di notify.post.ts).
+
+--------------------------------------------------------------------------------
+
+📁 COMPOSABLES:
+├── composables/useTelegram.ts
+│   └── State & helper koneksi notifikasi Telegram di sisi client:
+│       - State    : `isConnected`, `isLoading`, `deepLink`
+│       - Method   :
+│           • checkConnection(fingerprint): query tabel `telegram_subscriptions`
+│           • connect(fingerprint): panggil `/api/telegram/connect`, buka link,
+│             lalu polling status setiap 3 detik (max 10 menit).
+│
+├── composables/useFCM.ts
+│   └── State & helper Firebase Cloud Messaging (Web Push Notification):
+│       - State    : `fcmToken`
+│       - Method   :
+│           • initFCM(role, fingerprint?): request izin browser, register
+│             service worker (`/firebase-messaging-sw.js`), ambil VAPID token,
+│             simpan token ke tabel `fcm_tokens` di Supabase.
+│
+└── composables/useUI.ts (In-App Notification)
+    └── State UI global termasuk sistem Toast / In-app alert:
+        - State    : `toasts`
+        - Method   : `showToast(type, message, durationMs)`, `dismissToast(id)`.
+
+
+================================================================================
+2. DATABASE TABLES TERKAIT
+================================================================================
+
+1. `telegram_subscriptions`
+   - fingerprint      : string (identitas unik browser / user)
+   - chat_id          : string | null (ID chat Telegram user)
+   - temp_token       : string | null (token verifikasi 16-byte hex)
+   - token_expires_at : timestamp | null (masa berlaku token, default 10 menit)
+   - connected_at     : timestamp | null (waktu terhubung pertama/terakhir)
+
+2. `fcm_tokens`
+   - role             : 'user' | 'admin_it' | 'ustadz'
+   - fingerprint      : string | null (untuk user biasa)
+   - profile_id       : uuid | null (untuk staff/ustadz/admin)
+   - token            : string (token registrasi FCM)
+   - updated_at       : timestamp
+
+
+================================================================================
+3. ALUR KERJA (WORKFLOW / DATA FLOW)
+================================================================================
+
+A. FLOW PENGHUBUNGAN TELEGRAM (CONNECT FLOW):
+--------------------------------------------------------------------------------
+[User di Web / pages/ask.vue]
+   │
+   ▼
+[composables/useTelegram.ts -> connect(fingerprint)]
+   │
+   ▼ POST /api/telegram/connect { fingerprint }
+   │ ├─ Simpan temp_token + expiry ke `telegram_subscriptions`
+   │ └─ Kembalikan URL: https://t.me/<bot>?start=<token>
+   │
+   ▼ Browser membuka Telegram & jalankan polling `checkConnection` tiap 3s
+[User klik START di Telegram Bot]
+   │
+   ▼ Telegram Server trigger POST /api/telegram/webhook
+   │ ├─ Verifikasi `x-telegram-bot-api-secret-token`
+   │ ├─ Cocokkan temp_token di `telegram_subscriptions`
+   │ └─ Update `chat_id` = chatId, temp_token = null, connected_at = NOW()
+   │
+   ▼
+[Polling useTelegram.checkConnection mendeteksi chat_id terisi]
+   │
+   ▼ Status di Web berubah menjadi `isConnected = true`
+
+
+B. FLOW PENGIRIMAN NOTIFIKASI JAWABAN (ANSWER NOTIFICATION):
+--------------------------------------------------------------------------------
+[Ustadz mengirimkan jawaban di /pages/ustadz/dashboard]
+   │
+   ▼ POST /api/ustadz/answer { question_id, answer }
+   │ ├─ Update status pertanyaan di database menjadi 'answered'
+   │ └─ Ambil question.fingerprint
+   │
+   ▼ Internal $fetch('POST /api/notify', { role: 'user', fingerprint, message })
+[server/api/notify.post.ts]
+   │ ├─ Lookup `chat_id` di `telegram_subscriptions` via fingerprint
+   │ ├─ Kirim pesan via Telegram Bot API: https://api.telegram.org/bot<token>/sendMessage
+   │ ├─ Fallback dari Markdown ke Plain Text jika parsing gagal (HTTP 400)
+   │ └─ Jika user memblokir bot (HTTP 403), bersihkan `chat_id` di database
+   │
+   ▼
+[User menerima notifikasi di aplikasi Telegram di HP / Desktop]
+
+
+C. FLOW WEB PUSH NOTIFIKASI (FCM FLOW):
+--------------------------------------------------------------------------------
+[Halaman Web (app.vue / ask.vue / ustadz/dashboard / admin/dashboard)]
+   │
+   ▼ Panggil useFCM.initFCM(role, fingerprint)
+   │ ├─ Cek support Notification & ServiceWorker di browser
+   │ ├─ Notification.requestPermission()
+   │ ├─ Register `/firebase-messaging-sw.js`
+   │ ├─ Ambil FCM device token via getToken()
+   │ └─ Simpan / upsert ke tabel Supabase `fcm_tokens`
+   │
+   ▼ Background Push via FCM Service Worker & Foreground via `onMessage()`

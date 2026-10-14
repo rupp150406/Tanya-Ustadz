@@ -389,7 +389,7 @@ const getStatusLabel = (s) =>
         </div>
         <div v-show="!loading" class="mb-10 relative overflow-hidden rounded-[2rem] bg-primary h-52 flex flex-col justify-end p-8 shadow-xl shadow-primary/10 transition-transform md:hover:scale-[1.01] duration-500">
           <div class="absolute inset-0">
-            <img decoding="async" class="w-full h-full object-cover" src="https://chwjmwuqdbcmgnascxfg.supabase.co/storage/v1/object/sign/just%20me/green-2.webp?token=eyJraWQiOiIwOGQ0ZmUxMi1lYmVhLTQwMTUtODg1NS1hMjQ1NjEyYjU5NzkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJqdXN0IG1lL2dyZWVuLTIud2VicCIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3OTEzNzQ2NDksImV4cCI6MjQyMjA5NDY0OX0.un6uz_7p03FcNP6UbDV1s9HbvxWzBVtsj83rsCFWrtI" />
+            <img decoding="async" class="w-full h-full object-cover" src="https://qbjpzbcnxmintosbvaal.supabase.co/storage/v1/object/sign/assets/mecca.webp?token=eyJraWQiOiI5MGMyNmVkOC0xM2U0LTQyZTItODI2Yy05ZTlkZjU3NjU0Y2MiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJhc3NldHMvbWVjY2Eud2VicCIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3OTE5NjM1NTIsImV4cCI6MjQyMjY4MzU1Mn0.nvl_p54w4mjYoTI9h3ot5wHaQmCFoMOHLhjmtmXuoJ8" />
             <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
           </div>
           <div class="relative z-10">
