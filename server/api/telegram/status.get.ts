@@ -1,9 +1,10 @@
-import { defineEventHandler, getQuery } from 'h3'
+import { defineEventHandler, getQuery, setHeader } from 'h3'
 import { createClient } from '@supabase/supabase-js'
 
 // GET /api/telegram/status?fingerprint=...  →  { connected: boolean }
 // Lets the browser check its link status without reading the table directly.
 export default defineEventHandler(async (event) => {
+  setHeader(event, 'Cache-Control', 'no-store') // status changes after the user taps START
   const config = useRuntimeConfig()
   const raw = getQuery(event).fingerprint
   const fingerprint = typeof raw === 'string' ? raw.trim() : ''

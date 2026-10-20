@@ -85,25 +85,40 @@ watch(() => q.value?.answered_by_profile?.avatar_url, async (avatarUrl) => {
   }
 }, { immediate: true })
 
-// ─── Share Function ─────────────────────────────────────────
+// ─── Share: copy the page link + "copied" feedback ──────────
+const copied = ref(false)
+let copiedTimer = null
+
 async function handleShare() {
+  // clean link: no ?query or #hash that the visitor happened to have
+  const url = `${window.location.origin}${route.path}`
+  let ok = false
+
   try {
-    const url = window.location.href
     await navigator.clipboard.writeText(url)
-    // You could add a toast notification here if needed
-    console.log('Link copied to clipboard:', url)
-  } catch (err) {
-    // Fallback for older browsers
-    const url = window.location.href
-    const textArea = document.createElement('textarea')
-    textArea.value = url
-    document.body.appendChild(textArea)
-    textArea.select()
-    document.execCommand('copy')
-    document.body.removeChild(textArea)
-    console.log('Link copied to clipboard (fallback):', url)
+    ok = true
+  } catch {
+    // Fallback: http pages, older browsers, iOS
+    const ta = document.createElement('textarea')
+    ta.value = url
+    ta.setAttribute('readonly', '')
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    ta.setSelectionRange(0, url.length)
+    try { ok = document.execCommand('copy') } catch {}
+    document.body.removeChild(ta)
   }
+
+  // last resort: let the person copy it by hand
+  if (!ok) { window.prompt('Salin tautan ini:', url); return }
+
+  copied.value = true
+  clearTimeout(copiedTimer)
+  copiedTimer = setTimeout(() => { copied.value = false }, 2000)
 }
+onBeforeUnmount(() => clearTimeout(copiedTimer))
 
 const router = useRouter()
 
@@ -191,7 +206,6 @@ function navigateToUstadz(id) {
           </span>
         </div>
 
-        <!-- Ticket ID -->
         <!-- Theme Toggle -->
         <UiThemeToggle />
       </div>
@@ -270,11 +284,33 @@ function navigateToUstadz(id) {
               :question-id="q.id"
               :initial-count="q.upvotes ?? 0"
               size="sm" /> DISABLED -->
-            <button @click="handleShare" class="flex items-center gap-2 group active:scale-95 transition-transform">
-              <div class="w-10 h-10 rounded-full bg-surface-container-low dark:bg-zinc-800 group-hover:bg-surface-container dark:group-hover:bg-zinc-700 flex items-center justify-center transition-colors">
-                <span class="material-symbols-outlined text-outline dark:text-zinc-500">share</span>
+            <button
+              @click="handleShare"
+              :aria-label="copied ? 'Tautan disalin' : 'Salin tautan'"
+              class="relative flex items-center gap-2 group active:scale-95 transition-transform"
+            >
+              <!-- tooltip: shows on hover, stays visible for 2s after copying -->
+              <span
+                role="status"
+                class="pointer-events-none absolute bottom-full left-0 mb-2 whitespace-nowrap rounded-lg bg-on-surface dark:bg-zinc-100 text-surface dark:text-zinc-900 text-[11px] font-bold px-2.5 py-1 shadow-md transition-opacity duration-150"
+                :class="copied ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
+              >{{ copied ? 'Tautan disalin!' : 'Salin tautan' }}</span>
+
+              <div
+                class="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
+                :class="copied
+                  ? 'bg-primary/10'
+                  : 'bg-surface-container-low dark:bg-zinc-800 group-hover:bg-surface-container dark:group-hover:bg-zinc-700'"
+              >
+                <span
+                  class="material-symbols-outlined transition-colors"
+                  :class="copied ? 'text-primary' : 'text-outline dark:text-zinc-500'"
+                >{{ copied ? 'check' : 'share' }}</span>
               </div>
-              <span class="text-sm font-semibold text-outline dark:text-zinc-500">Bagikan</span>
+              <span
+                class="text-sm font-semibold transition-colors"
+                :class="copied ? 'text-primary' : 'text-outline dark:text-zinc-500'"
+              >Bagikan</span>
             </button>
           </div>
         </section>

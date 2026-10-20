@@ -19,10 +19,12 @@ export const useTelegram = () => {
     try {
       const res = await $fetch<{ connected: boolean }>('/api/telegram/status', {
         query: { fingerprint },
+        cache: 'no-store', // never reuse an old "false" answer
       })
       isConnected.value = !!res?.connected
-    } catch {
-      // keep the previous value on a network hiccup
+    } catch (e) {
+      // keep the previous value on a network hiccup, but leave a trace in the console
+      console.warn('[telegram] status check failed:', e)
     }
     return isConnected.value
   }
